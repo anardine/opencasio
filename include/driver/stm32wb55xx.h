@@ -39,6 +39,7 @@
 
 // Pointer structures
 
+//GPIO
 typedef struct
 {
     uint32_t moder;    // GPIO port mode register
@@ -54,3 +55,4 @@ typedef struct
     uint32_t brr;      // GPIO port bit reset register
 
 } GPIOx_TypeDef;        // Structure representing a GPIO peripheral
+
