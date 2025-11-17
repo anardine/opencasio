@@ -6,7 +6,6 @@
 #define OPENCAS_STM32WB55XX_H
 
 #include <stdint.h>
-#include <sys/types.h>
 
 // Base address definitions for STM32WB55xx
 
@@ -142,17 +141,17 @@ typedef struct
 //GPIO
 typedef struct
 {
-    uint32_t moder;             // GPIO port mode register
-    uint32_t otyper;            // GPIO port output type register
-    uint32_t ospeedr;           // GPIO port output speed register
-    uint32_t pupdr;             // GPIO port pull-up/pull-down register
-    uint32_t idr;               // GPIO port input data register
-    uint32_t odr;               // GPIO port output data register
-    uint32_t bsrr;              // GPIO port bit set/reset register
-    uint32_t lckr;              // GPIO port configuration lock register
-    uint32_t afrl;              // GPIO alternate function low register
-    uint32_t afrh;              // GPIO alternate function high register
-    uint32_t brr;               // GPIO port bit reset register
+    uint32_t moder;             // 0x00: GPIO port mode register
+    uint32_t otyper;            // 0x04: GPIO port output type register
+    uint32_t ospeedr;           // 0x08: GPIO port output speed register
+    uint32_t pupdr;             // 0x0C: GPIO port pull-up/pull-down register
+    uint32_t idr;               // 0x10: GPIO port input data register
+    uint32_t odr;               // 0x14: GPIO port output data register
+    uint32_t bsrr;              // 0x18: GPIO port bit set/reset register
+    uint32_t lckr;              // 0x1C: GPIO port configuration lock register
+    uint32_t afrl;              // 0x20: GPIO alternate function low register
+    uint32_t afrh;              // 0x24: GPIO alternate function high register
+    uint32_t brr;               // 0x28: GPIO port bit reset register
 
 } GPIOx_RegTypeDef;
 
@@ -215,22 +214,38 @@ typedef struct
 
 }TIMx_RegTypeDef;
 
-#define TIMER1                          ((TIMx_RegTypeDef *) TIM1_BASE_ADDR)
+#define TIMER                          ((TIMx_RegTypeDef *) TIM1_BASE_ADDR)
 
 typedef struct
 {
-    uint32_t cr1;               // Control register 1
-    uint32_t cr2;               // Control register 2
-    uint32_t sr;                // Status register
-    uint32_t dr;                // Data register
-    uint32_t crcpr;             // CRC polynomial register
-    uint32_t rxcrcr;            // RX CRC register
-    uint32_t txcrcr;            // TX CRC register
+    uint32_t cr1;               //0x00: Control register 1
+    uint32_t cr2;               //0x04: Control register 2
+    uint32_t sr;                //0x08: Status register
+    uint32_t dr;                //0x0C: Data register
+    uint32_t crcpr;             //0x10: CRC polynomial register
+    uint32_t rxcrcr;            //0x14: RX CRC register
+    uint32_t txcrcr;            //0x18: TX CRC register
 
 }SPIx_RegTypeDef;
 
-#define SPI2                            ((SPIx_RegTypeDef *) SPI2_BASE_ADDR)
+#define SPI                            ((SPIx_RegTypeDef *) SPI2_BASE_ADDR)
 
+typedef struct
+{
+    uint32_t cr1;               // 0x00: control register 1
+    uint32_t cr2;               // 0x04: control register 2
+    uint32_t oar1;              // 0x08: own address register 1
+    uint32_t oar2;              // 0x0C: own address register 2
+    uint32_t timingr;           // 0x10: timing register
+    uint32_t timeoutr;          // 0x14: timeout register
+    uint32_t isr;               // 0x18: interrupt and status register
+    uint32_t icr;               // 0x1C: interrupt clear register
+    uint32_t pecr;              // 0x20: packet error checking register
+    uint32_t rxdr;              // 0x24: receive data register
+    uint32_t txdr;              // 0x28: transmit data register
+}I2Cx_Reg_TypeDef;
+
+#define I2C                         ((I2Cx_Reg_TypeDef *) I2C1_BASE_ADDR)
 
 
 #endif
