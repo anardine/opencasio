@@ -102,16 +102,16 @@ typedef struct
     uint32_t swpr;              // 0x20: SRAM2 write protection register
     uint32_t skr;               // 0x24: SRAM2 key register
     uint32_t swpr2;             // 0x28: SRAM2 write protection register 2
-    uint32_t reserved[53];      // 0x2C-0xFF: reserved (53 bytes to align with 0x100)
+    uint32_t reserved[53];      // 0x2C-0xFF: reserved (53 words to align with 0x100)
     uint32_t imr1;              // 0x100: CPU1 interrupt mask register 1
     uint32_t imr2;              // 0x104: CPU1 interrupt mask register 2
     uint32_t c2imr1;            // 0x108: CPU2 interrupt mask register 1
     uint32_t c2imr2;            // 0x10C: CPU2 interrupt mask register 2
     uint32_t sipcr;             // 0x110: secure IP control register
     
-}SYSCGF_RegTypeDef;
+}SYSCFG_RegTypeDef;
 
-#define SYSCFG                          ((SYSCGF_RegTypeDef*) SYSCFG_BASE_ADDR)
+#define SYSCFG                          ((SYSCFG_RegTypeDef*) SYSCFG_BASE_ADDR)
 
 
 //EXTI - This does not include CPU2 registers since there's no use of CPU2 on this project
@@ -168,14 +168,22 @@ typedef struct
     uint32_t fcr;               // 0x004: LCD frame control register
     uint32_t sr;                // 0x008: LCD status register
     uint32_t clr;               // 0x00C: LCD clear register
-    uint64_t ramcom0;           // 0x010: LCD display RAM common register 0
-    uint64_t ramcom1;           // 0x018: LCD display RAM common register 1
-    uint64_t ramcom2;           // 0x020: LCD display RAM common register 2
-    uint64_t ramcom3;           // 0x028: LCD display RAM common register 3
-    uint64_t ramcom4;           // 0x030: LCD display RAM common register 4
-    uint64_t ramcom5;           // 0x038: LCD display RAM common register 5
-    uint64_t ramcom6;           // 0x040: LCD display RAM common register 6
-    uint64_t ramcom7;           // 0x048: LCD display RAM common register 7
+    uint32_t com0_l;            // 0x010: LCD display RAM COM0 low word
+    uint32_t com0_h;            // 0x014: LCD display RAM COM0 high word
+    uint32_t com1_l;            // 0x018: LCD display RAM COM1 low word
+    uint32_t com1_h;            // 0x01C: LCD display RAM COM1 high word
+    uint32_t com2_l;            // 0x020: LCD display RAM COM2 low word
+    uint32_t com2_h;            // 0x024: LCD display RAM COM2 high word
+    uint32_t com3_l;            // 0x028: LCD display RAM COM3 low word
+    uint32_t com3_h;            // 0x02C: LCD display RAM COM3 high word
+    uint32_t com4_l;            // 0x030: LCD display RAM COM4 low word
+    uint32_t com4_h;            // 0x034: LCD display RAM COM4 high word
+    uint32_t com5_l;            // 0x038: LCD display RAM COM5 low word
+    uint32_t com5_h;            // 0x03C: LCD display RAM COM5 high word
+    uint32_t com6_l;            // 0x040: LCD display RAM COM6 low word
+    uint32_t com6_h;            // 0x044: LCD display RAM COM6 high word
+    uint32_t com7_l;            // 0x048: LCD display RAM COM7 low word
+    uint32_t com7_h;            // 0x04C: LCD display RAM COM7 high word
 
 }LCD_RegTypeDef;
 
@@ -246,6 +254,8 @@ typedef struct
 }I2Cx_Reg_TypeDef;
 
 #define I2C                         ((I2Cx_Reg_TypeDef *) I2C1_BASE_ADDR)
+
+
 
 
 #endif
