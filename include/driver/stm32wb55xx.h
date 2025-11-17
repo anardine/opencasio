@@ -11,31 +11,30 @@
 // Base address definitions for STM32WB55xx
 
 //Buses
-#define AHB1_BASE_ADDR                    (0x40020000UL)
-#define AHB2_BASE_ADDR                    (0x48000000UL)
-#define AHB4_BASE_ADDR                    (0x58000000UL)
-#define APB1_BASE_ADDR                    (0x40000000UL)
-#define APB2_BASE_ADDR                    (0x40010000UL)
+#define AHB1_BASE_ADDR                  (0x40020000UL)
+#define AHB2_BASE_ADDR                  (0x48000000UL)
+#define AHB4_BASE_ADDR                  (0x58000000UL)
+#define APB1_BASE_ADDR                  (0x40000000UL)
+#define APB2_BASE_ADDR                  (0x40010000UL)
 
 //GPIOs
-#define GPIOA_BASE_ADDR                   (AHB2_BASE_ADDR + 0x0000UL)
-#define GPIOB_BASE_ADDR                   (AHB2_BASE_ADDR + 0x0400UL)
-#define GPIOC_BASE_ADDR                   (AHB2_BASE_ADDR + 0x0800UL)
-#define GPIOD_BASE_ADDR                   (AHB2_BASE_ADDR + 0x0C00UL)
-#define GPIOE_BASE_ADDR                   (AHB2_BASE_ADDR + 0x1000UL)
+#define GPIOA_BASE_ADDR                 (AHB2_BASE_ADDR + 0x0000UL)
+#define GPIOB_BASE_ADDR                 (AHB2_BASE_ADDR + 0x0400UL)
+#define GPIOC_BASE_ADDR                 (AHB2_BASE_ADDR + 0x0800UL)
+#define GPIOD_BASE_ADDR                 (AHB2_BASE_ADDR + 0x0C00UL)
+#define GPIOE_BASE_ADDR                 (AHB2_BASE_ADDR + 0x1000UL)
 
 //SYS Config and RCC control
-#define RCC_BASE_ADDR                     (AHB4_BASE_ADDR + 0x0000UL)
-#define SYSCFG1_BASE_ADDR                 (APB2_BASE_ADDR + 0x0000UL)
-#define SYSCFG2_BASE_ADDR                 (APB2_BASE_ADDR + 0x0100UL)
+#define RCC_BASE_ADDR                   (AHB4_BASE_ADDR + 0x0000UL)
+#define SYSCFG_BASE_ADDR                (APB2_BASE_ADDR + 0x0000UL)
 
 //LCD
-#define LCD_BASE_ADDR                     (APB1_BASE_ADDR + 0x2400UL)
+#define LCD_BASE_ADDR                   (APB1_BASE_ADDR + 0x2400UL)
 
 //Comm peripherals
-#define TIM1_BASE_ADDR                    (APB2_BASE_ADDR + 0x2C00UL)
-#define SPI2_BASE_ADDR                    (APB1_BASE_ADDR + 0x3800UL)
-#define I2C1_BASE_ADDR                    (APB1_BASE_ADDR + 0x5400UL)
+#define TIM1_BASE_ADDR                  (APB2_BASE_ADDR + 0x2C00UL)
+#define SPI2_BASE_ADDR                  (APB1_BASE_ADDR + 0x3800UL)
+#define I2C1_BASE_ADDR                  (APB1_BASE_ADDR + 0x5400UL)
 
 
 // Pointer structures
@@ -55,7 +54,7 @@ typedef struct
     uint32_t afrh;              // GPIO alternate function high register
     uint32_t brr;               // GPIO port bit reset register
 
-} GPIOx_RegTypeDef;        // Structure representing a GPIO peripheral
+} GPIOx_RegTypeDef;
 
 #define GPIOA                           ((GPIOx_RegTypeDef *) GPIOA_BASE_ADDR)
 #define GPIOB                           ((GPIOx_RegTypeDef *) GPIOB_BASE_ADDR)
@@ -64,7 +63,7 @@ typedef struct
 #define GPIOE                           ((GPIOx_RegTypeDef *) GPIOE_BASE_ADDR)
 
 
-
+//RCC - This does not include CPU2 registers since there's no use of CPU2 on this project
 typedef struct
 {
     uint32_t cr;                // clock control register
@@ -113,7 +112,30 @@ typedef struct
 #define RCC                             ((RCC_RegTypeDef *) RCC_BASE_ADDR)
 
 
+//SYSCFG
+typedef struct
+{
+    uint32_t memrmp;            // 0x00: memory remap register
+    uint32_t cfgr1;             // 0x04: configuration register 1
+    uint32_t exticr1;           // 0x08: external interrupt configuration register 1
+    uint32_t exticr2;           // 0x0C: external interrupt configuration register 2
+    uint32_t exticr3;           // 0x10: external interrupt configuration register 3
+    uint32_t exticr4;           // 0x14: external interrupt configuration register 4
+    uint32_t scsr;              // 0x18: system configuration security control register
+    uint32_t cfgr2;             // 0x1C: configuration register 2
+    uint32_t swpr;              // 0x20: SRAM2 write protection register
+    uint32_t skr;               // 0x24: SRAM2 key register
+    uint32_t swpr2;             // 0x28: SRAM2 write protection register 2
+    uint32_t reserved[53];      // 0x2C-0xFF: reserved (53 words to align with 0x100)
+    uint32_t imr1;              // 0x100: CPU1 interrupt mask register 1
+    uint32_t imr2;              // 0x104: CPU1 interrupt mask register 2
+    uint32_t c2imr1;            // 0x108: CPU2 interrupt mask register 1
+    uint32_t c2imr2;            // 0x10C: CPU2 interrupt mask register 2
+    uint32_t sipcr;             // 0x110: secure IP control register
+    
+}SYSCGF_RegTypeDef;
 
+#define SYSCFG                          ((SYSCGF_RegTypeDef*)SYSCFG_BASE_ADDR)
 
 
 
