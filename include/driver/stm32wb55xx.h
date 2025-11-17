@@ -213,11 +213,23 @@ typedef struct
     uint32_t af2;               // 0x64: TIM1 Alternate function register 2
     uint32_t tisel;             // 0x68: timer input selection register
 
-}TIM1_RegTypeDef;
+}TIMx_RegTypeDef;
 
-#define TIMER1                          ((TIM1_RegTypeDef *) TIM1_BASE_ADDR)
+#define TIMER1                          ((TIMx_RegTypeDef *) TIM1_BASE_ADDR)
 
+typedef struct
+{
+    uint16_t cr1;               // Control register 1
+    uint16_t cr2;               // Control register 2
+    uint16_t sr;                // Status register
+    uint16_t dr;                // Data register
+    uint16_t crcpr;             // CRC polynomial register
+    uint16_t rxcrcr;            // RX CRC register
+    uint16_t txcrcr;            // TX CRC register
 
+}SPIx_RegTypeDef;
+
+#define SPI2                            ((SPIx_RegTypeDef *) SPI2_BASE_ADDR)
 
 
 
