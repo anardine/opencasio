@@ -27,6 +27,7 @@
 //SYS Config and RCC control
 #define RCC_BASE_ADDR                   (AHB4_BASE_ADDR + 0x0000UL)
 #define SYSCFG_BASE_ADDR                (APB2_BASE_ADDR + 0x0000UL)
+#define EXTI_BASE_ADDR                  (AHB4_BASE_ADDR + 0X0800UL)
 
 //LCD
 #define LCD_BASE_ADDR                   (APB1_BASE_ADDR + 0x2400UL)
@@ -126,7 +127,7 @@ typedef struct
     uint32_t swpr;              // 0x20: SRAM2 write protection register
     uint32_t skr;               // 0x24: SRAM2 key register
     uint32_t swpr2;             // 0x28: SRAM2 write protection register 2
-    uint32_t reserved[53];      // 0x2C-0xFF: reserved (53 words to align with 0x100)
+    uint32_t reserved[53];      // 0x2C-0xFF: reserved (53 bytes to align with 0x100)
     uint32_t imr1;              // 0x100: CPU1 interrupt mask register 1
     uint32_t imr2;              // 0x104: CPU1 interrupt mask register 2
     uint32_t c2imr1;            // 0x108: CPU2 interrupt mask register 1
@@ -135,7 +136,31 @@ typedef struct
     
 }SYSCGF_RegTypeDef;
 
-#define SYSCFG                          ((SYSCGF_RegTypeDef*)SYSCFG_BASE_ADDR)
+#define SYSCFG                          ((SYSCGF_RegTypeDef*) SYSCFG_BASE_ADDR)
+
+
+//EXTI - This does not include CPU2 registers since there's no use of CPU2 on this project
+typedef struct
+{
+    uint32_t rtsr1;       // 0x000: Rising trigger selection register 1
+    uint32_t ftsr1;       // 0x004: Falling trigger selection register 1
+    uint32_t swier1;      // 0x008: Software interrupt event register 1
+    uint32_t pr1;         // 0x00C: Pending register 1
+    uint32_t reserved0[4]; // 0x010-0x01F: reserved
+    uint32_t rtsr2;       // 0x020: Rising trigger selection register 2
+    uint32_t ftsr2;       // 0x024: Falling trigger selection register 2
+    uint32_t swier2;      // 0x028: Software interrupt event register 2
+    uint32_t pr2;         // 0x02C: Pending register 2
+    uint32_t reserved1[20]; // 0x030-0x07F: reserved
+    uint32_t imr1;        // 0x080: Interrupt mask register 1
+    uint32_t emr1;        // 0x084: Event mask register 1
+    uint32_t reserved2[2]; // 0x088-0x08F: reserved
+    uint32_t imr2;        // 0x090: Interrupt mask register 2
+    uint32_t emr2;        // 0x094: Event mask register 2
+
+} EXTI_RegTypeDef;
+
+#define EXTI                            ((EXTI_RegTypeDef*) EXTI_BASE_ADDR)
 
 
 
