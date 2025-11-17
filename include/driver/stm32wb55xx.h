@@ -168,22 +168,23 @@ typedef struct
     uint32_t fcr;               // 0x004: LCD frame control register
     uint32_t sr;                // 0x008: LCD status register
     uint32_t clr;               // 0x00C: LCD clear register
-    uint32_t com0_l;            // 0x010: LCD display RAM COM0 low word
-    uint32_t com0_h;            // 0x014: LCD display RAM COM0 high word
-    uint32_t com1_l;            // 0x018: LCD display RAM COM1 low word
-    uint32_t com1_h;            // 0x01C: LCD display RAM COM1 high word
-    uint32_t com2_l;            // 0x020: LCD display RAM COM2 low word
-    uint32_t com2_h;            // 0x024: LCD display RAM COM2 high word
-    uint32_t com3_l;            // 0x028: LCD display RAM COM3 low word
-    uint32_t com3_h;            // 0x02C: LCD display RAM COM3 high word
-    uint32_t com4_l;            // 0x030: LCD display RAM COM4 low word
-    uint32_t com4_h;            // 0x034: LCD display RAM COM4 high word
-    uint32_t com5_l;            // 0x038: LCD display RAM COM5 low word
-    uint32_t com5_h;            // 0x03C: LCD display RAM COM5 high word
-    uint32_t com6_l;            // 0x040: LCD display RAM COM6 low word
-    uint32_t com6_h;            // 0x044: LCD display RAM COM6 high word
-    uint32_t com7_l;            // 0x048: LCD display RAM COM7 low word
-    uint32_t com7_h;            // 0x04C: LCD display RAM COM7 high word
+    uint32_t reserved;          // 0x010: Reserved
+    uint32_t com0_l;            // 0x014: LCD display RAM COM0 low word
+    uint32_t com0_h;            // 0x018: LCD display RAM COM0 high word
+    uint32_t com1_l;            // 0x01C: LCD display RAM COM1 low word
+    uint32_t com1_h;            // 0x020: LCD display RAM COM1 high word
+    uint32_t com2_l;            // 0x024: LCD display RAM COM2 low word
+    uint32_t com2_h;            // 0x028: LCD display RAM COM2 high word
+    uint32_t com3_l;            // 0x02C: LCD display RAM COM3 low word
+    uint32_t com3_h;            // 0x030: LCD display RAM COM3 high word
+    uint32_t com4_l;            // 0x034: LCD display RAM COM4 low word
+    uint32_t com4_h;            // 0x038: LCD display RAM COM4 high word
+    uint32_t com5_l;            // 0x03C: LCD display RAM COM5 low word
+    uint32_t com5_h;            // 0x040: LCD display RAM COM5 high word
+    uint32_t com6_l;            // 0x044: LCD display RAM COM6 low word
+    uint32_t com6_h;            // 0x048: LCD display RAM COM6 high word
+    uint32_t com7_l;            // 0x04C: LCD display RAM COM7 low word
+    uint32_t com7_h;            // 0x050: LCD display RAM COM7 high word
 
 }LCD_RegTypeDef;
 
