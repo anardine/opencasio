@@ -3,19 +3,19 @@
 //
 
 // import section
-
-
-
-
-// init peripherals section
-
-
-
-
-//main loop
+#include "driver/rcc.h"
+#include "driver/gpio.h"
 
 
 int main() {
+
+      // set clock to 16MHz
+      initRCC();
+
+      // init peripherals section
+
+
+      //main loop
 
       while (1)
       {

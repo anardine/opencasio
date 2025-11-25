@@ -8,10 +8,9 @@
 
 #include "stm32wb55xx.h"
 
-//define the name of the condition to be enabled/disabled
+//define the name of the clock feature to be enabled/disabled
 enum RCC_PERIPHERAL
 {
-      SYS_CFG,
       GPIO_A_PER,
       GPIO_B_PER,
       GPIO_C_PER,
@@ -20,11 +19,11 @@ enum RCC_PERIPHERAL
       I2C_PER,
       SPI_PER,
       TIM1_PER,
-      EXTI_PER,
       LCD_PER,
 };
 
-uint8_t initRCC(void);
+//setup the clock to the default frequency of 16MHz
+uint8_t initRCC();
 
 //enable the clock on the designated peripheral
 void enableRCC(const enum RCC_PERIPHERAL rcc_per);
