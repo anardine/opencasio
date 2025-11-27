@@ -260,39 +260,36 @@ typedef struct
 
 // Clock enable and disable macros
 
- #define GPIOA_CLK_EN()				      ((RCC->ahb2enr) |= (1 << 0))
- #define GPIOB_CLK_EN()				      ((RCC->ahb2enr) |= (1 << 1))
- #define GPIOC_CLK_EN()				      ((RCC->ahb2enr) |= (1 << 2))
- #define GPIOD_CLK_EN()				      ((RCC->ahb2enr) |= (1 << 3))
- #define GPIOE_CLK_EN()				      ((RCC->ahb2enr) |= (1 << 4))
+#define GPIOA_CLK_EN    (RCC->ahb2enr |= (1 << 0))
+#define GPIOB_CLK_EN    (RCC->ahb2enr |= (1 << 1))
+#define GPIOC_CLK_EN    (RCC->ahb2enr |= (1 << 2))
+#define GPIOD_CLK_EN    (RCC->ahb2enr |= (1 << 3))
+#define GPIOE_CLK_EN    (RCC->ahb2enr |= (1 << 4))
 
- // clock disable for GPIOx
- #define GPIOA_CLK_DIS()			      ((RCC->ahb2enr) &= ~(1 << 0))
- #define GPIOB_CLK_DIS()			      ((RCC->ahb2enr) &= ~(1 << 1))
- #define GPIOC_CLK_DIS()			      ((RCC->ahb2enr) &= ~(1 << 2))
- #define GPIOD_CLK_DIS()			      ((RCC->ahb2enr) &= ~(1 << 3))
- #define GPIOE_CLK_DIS()			      ((RCC->ahb2enr) &= ~(1 << 4))
+// clock disable for GPIOx
+#define GPIOA_CLK_DIS   (RCC->ahb2enr &= ~(1 << 0))
+#define GPIOB_CLK_DIS   (RCC->ahb2enr &= ~(1 << 1))
+#define GPIOC_CLK_DIS   (RCC->ahb2enr &= ~(1 << 2))
+#define GPIOD_CLK_DIS   (RCC->ahb2enr &= ~(1 << 3))
+#define GPIOE_CLK_DIS   (RCC->ahb2enr &= ~(1 << 4))
 
- //clock enable for I2C
- #define I2C_CLK_EN()				      ((RCC->apb1enr1) |= (1 << 21))
+// clock enable for I2C
+#define I2C_CLK_EN      (RCC->apb1enr1 |= (1 << 21))
+// clock disable for I2C
+#define I2C_CLK_DIS     (RCC->apb1enr1 &= ~(1 << 21))
 
-//clock disable for I2C
-#define I2C_CLK_DIS()				      ((RCC->apb1enr1) &= ~(1 << 21))
+// clock enable for TIMER1
+#define TIM1_CLK_EN     (RCC->apb2enr |= (1 << 11))
+// clock disable for TIMER1
+#define TIM1_CLK_DIS    (RCC->apb2enr &= ~(1 << 11))
 
-//clock enable for TIMER1
-#define TIM1_CLK_EN()				      ((RCC->apb2enr) |= (1 << 11))
+// clock enable for LCD
+#define LCD_CLK_EN      (RCC->apb1enr1 |= (1 << 9))
 
-//clock disable for TIMER1
-#define TIM1_CLK_DIS()				      ((RCC->apb2enr) &= ~(1 << 11))
-
- //clock enable for LCD
-#define LCD_CLK_EN()                   ((RCC->apb1enr1) |= (1 << 9))
-
- // clock enable for SPI
- #define SPI_CLK_EN()				      ((RCC->apb1enr1) |= (1 << 14))
-
-  // clock disable for SPI
- #define SPI_CLK_DIS()				      ((RCC->apb1enr1) &= ~(1 << 14))
+// clock enable for SPI
+#define SPI_CLK_EN      (RCC->apb1enr1 |= (1 << 14))
+// clock disable for SPI
+#define SPI_CLK_DIS     (RCC->apb1enr1 &= ~(1 << 14))
 
 
 
@@ -300,14 +297,14 @@ typedef struct
 //overall macro definitions of set/unset registers
 
 // clock MSI macros
-#define MSI_RDY()                   (RCC->cr & (1 << 1))
-#define HSI_RDY()                   (RCC->cr & (1 << 10))
-#define HSI_CLK_SELECTED()          (RCC->cfgr & (1 << 3))
-#define SET_MSI_16                   RCC->cr |= (1 << 7)
-#define SET_MSI_ON                   RCC->cr |= (1 << 0)
-#define SET_MSI_OFF                  RCC->cr &= ~(1 << 0)
-#define SET_HSI_ON                   RCC->cr |= (1 << 8)
-#define SET_CLK_TO_HSI               RCC->cfgr |= (1 << 0)
+#define MSI_RDY()                    (RCC->cr & (1 << 1))
+#define HSI_RDY()                    (RCC->cr & (1 << 10))
+#define HSI_CLK_SELECTED()           (RCC->cfgr & (1 << 3))
+#define SET_MSI_16                   (RCC->cr |= (1 << 7))
+#define SET_MSI_ON                   (RCC->cr |= (1 << 0))
+#define SET_MSI_OFF                  (RCC->cr &= ~(1 << 0))
+#define SET_HSI_ON                   (RCC->cr |= (1 << 8))
+#define SET_CLK_TO_HSI               (RCC->cfgr |= (1 << 0))
 
 
 #endif
