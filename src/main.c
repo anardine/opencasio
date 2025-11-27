@@ -3,6 +3,7 @@
 //
 
 // import section
+#include "aux/error.h"
 #include "driver/rcc.h"
 #include "driver/gpio.h"
 
@@ -10,7 +11,8 @@
 int main() {
 
       // set clock to 16MHz
-      initRCC();
+      if (!initRCC()) return RCC_CFG_ERR;             //if clock is unable to be set to HSI, return RCC_CFG_ERR and end application
+
 
       // init peripherals section
 
@@ -21,4 +23,5 @@ int main() {
       {
 
       }
+
 }

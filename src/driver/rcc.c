@@ -8,18 +8,24 @@
 uint8_t initRCC() {
     //set internal clock source to 16MHz
     //when the MCU is powered on, the initial clock source selected is MSI on 4MHz. We need to check the RCC_CR register to understand if MSI is ready to then set the MSI to 16MHz. When it wakes from standby mode, the MCU instead runs on HSI instead (which is by default 16MHz)
-    const uint32_t rccState = RCC->cr;
+    uint32_t rccState = RCC->cr;
 
     switch (rccState) {
 
-        case 0x61:                                  //Reset value: 0x0000 0061 (after POR reset)
-            while (!MSI_RDY_FLAG()) {}                //wait for MSI flag to report ready
-            RCC->cr &= ~(0xF << 7);                 //clear MSIs default of 4MHz
-            SET_MSI_16();                             //set the MSI to 16MHz
-            return 1;                               // return true if MSI was correctly set
+        case 0x61:                                    //0x61 (reset default)
+        while (!MSI_RDY()) {}                  //wait for MSI flag to report ready
+        return initRCC();
+
+        case 0x63:                                    //0x63 MSI ready (4MHz Default)
+            SET_HSI_ON;                               //turn HSI on
+            SET_CLK_TO_HSI;                           //set clock to HSI
+            SET_MSI_OFF;                              //once HSI is on, turn MSI off
+        if (HSI_RDY() && HSI_CLK_SELECTED()) {
+            return 1;                               // return true if HSI is now active
+        }
+            return 0;
 
         case 0x160:                                 //Reset value: 0x0000 0160 (after wake-up from Standby reset)
-
             return 2;                               // return 2 if clock is HSI-based
 
         default:
