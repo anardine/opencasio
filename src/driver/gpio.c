@@ -65,3 +65,17 @@ uint32_t GPIO_ReadFromInputPort(GPIOx_RegTypeDef *pGPIOx) {
     return value;
 }
 
+
+void GPIO_WriteToOutputPin(GPIO_Handle_t *pToGPIOHandle, uint8_t dataToWrite) {
+
+    uint8_t pin = pToGPIOHandle->GPIO_PinConfig.GPIO_PinNumber;
+    // write data
+    (pToGPIOHandle->pGPIOx->odr |= (dataToWrite << pin));
+
+}
+
+void GPIO_WriteToOutputPort(GPIOx_RegTypeDef *pGPIOx, uint32_t dataToWrite) {
+    // write the entire data to the write port
+    pGPIOx->odr = dataToWrite;
+
+}
