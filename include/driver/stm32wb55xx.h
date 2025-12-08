@@ -9,6 +9,11 @@
 
 //TODO: check all offsets from beginning to end to check whether all register maps are correct
 
+// Macro definitions
+
+#define F_CPU                          HSI
+#define HSI                            16000000UL
+
 // Base address definitions for STM32WB55xx
 
 //Buses
@@ -398,6 +403,17 @@ typedef struct
 // SPI Enable/Disable
 #define SPI_ENABLE                   1U
 #define SPI_DISABLE                  0U
+
+#define I2C_ENABLE                   1U
+
+#define I2C_MODE_STANDARD              0U
+#define I2C_MODE_FM                    1U
+#define I2C_MODE_FMP                   2U
+
+#define I2C_TX_INT_EN                   1U
+#define I2C_RX_INT_EN                   1U
+
+
 
 
 
