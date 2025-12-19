@@ -11,10 +11,7 @@ uint8_t I2C_Init(I2C_Handle_t *pToI2CHandle) {
       (SYSCFG->cfgr1 |= (1 << 20));
     }
 
-           uint8_t ackControl = pToI2CHandle->I2C_PinConfig.I2C_AckControl;
       uint8_t freq = pToI2CHandle->I2C_PinConfig.I2C_ClockSpeed;
-      uint8_t addr = pToI2CHandle->I2C_PinConfig.I2C_DeviceAddress;
-      uint8_t dutyCycle = pToI2CHandle->I2C_PinConfig.I2C_DutyCycleForFastMode;
       uint8_t freqMode = pToI2CHandle->I2C_PinConfig.I2C_Mode;
 
     // freq_mode: 0 = Standard (<=100kHz), 1 = Fast (<=400kHz), 2 = Fast Mode Plus (<=1MHz)
@@ -131,7 +128,7 @@ uint8_t I2C_Transmit(I2C_Handle_t *pToI2CHandle, uint8_t *data, uint8_t length, 
     for (int i = 0; i < length; i++) {
         // Wait until TXIS (Transmit interrupt status) flag is set or NACK received
         // TXIS is bit 1 in ISR
-        while (!(pToI2CHandle->pI2Cx->isr & (1 << 1)));
+        while (!(pToI2CHandle->pI2Cx->isr & (1 << 1))){};
 
         // Write data to TXDR
         pToI2CHandle->pI2Cx->txdr = data[i];
@@ -139,7 +136,7 @@ uint8_t I2C_Transmit(I2C_Handle_t *pToI2CHandle, uint8_t *data, uint8_t length, 
 
     // 4. Wait for the STOP condition to be detected
     // STOPF is bit 5 in ISR
-    while (!(pToI2CHandle->pI2Cx->isr & (1 << 5)));
+    while (!(pToI2CHandle->pI2Cx->isr & (1 << 5))){};
 
     // Clear STOPF flag by writing to ICR (Interrupt Clear Register)
     pToI2CHandle->pI2Cx->icr |= (1 << 5);
@@ -154,6 +151,7 @@ uint8_t I2C_Transmit(I2C_Handle_t *pToI2CHandle, uint8_t *data, uint8_t length, 
 
 uint8_t I2C_Receive(I2C_Handle_t *pToI2CHandle, uint8_t *data, uint8_t address) {
 
+    return 0;
 
 }
 
