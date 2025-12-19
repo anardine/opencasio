@@ -30,7 +30,7 @@ typedef struct stm32f411xx_i2c
 uint8_t I2C_Init(I2C_Handle_t *pToI2CHandle); // initialize all the characteristics of the I2C port with the default internal clock config
 void I2C_DeInit(I2Cx_Reg_TypeDef *pI2Cx); // resets all data from a specific I2C port
 uint8_t I2C_Transmit(I2C_Handle_t *pToI2CHandle, uint8_t *data, uint8_t length, uint8_t address);
-uint8_t I2C_Receive(I2C_Handle_t *pToI2CHandle, uint8_t *data, uint8_t address);
+uint8_t I2C_Receive(I2C_Handle_t *pToI2CHandle, uint8_t *data, uint8_t length, uint8_t address);
 
 
 

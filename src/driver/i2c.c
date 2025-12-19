@@ -99,7 +99,7 @@ void I2C_DeInit(I2Cx_Reg_TypeDef *pI2Cx) {
 
 
 uint8_t I2C_Transmit(I2C_Handle_t *pToI2CHandle, uint8_t *data, uint8_t length, uint8_t address) {
-
+    
     //put device in controller mode and configure sending bits
     uint32_t volatile cr2 = 0;
 
@@ -128,7 +128,7 @@ uint8_t I2C_Transmit(I2C_Handle_t *pToI2CHandle, uint8_t *data, uint8_t length, 
     for (int i = 0; i < length; i++) {
         // Wait until TXIS (Transmit interrupt status) flag is set or NACK received
         // TXIS is bit 1 in ISR
-        while (!(pToI2CHandle->pI2Cx->isr & (1 << 1))){};
+        while (!(pToI2CHandle->pI2Cx->isr & (1 << 1))){}
 
         // Write data to TXDR
         pToI2CHandle->pI2Cx->txdr = data[i];
@@ -136,7 +136,7 @@ uint8_t I2C_Transmit(I2C_Handle_t *pToI2CHandle, uint8_t *data, uint8_t length, 
 
     // 4. Wait for the STOP condition to be detected
     // STOPF is bit 5 in ISR
-    while (!(pToI2CHandle->pI2Cx->isr & (1 << 5))){};
+    while (!(pToI2CHandle->pI2Cx->isr & (1 << 5))){}
 
     // Clear STOPF flag by writing to ICR (Interrupt Clear Register)
     pToI2CHandle->pI2Cx->icr |= (1 << 5);
@@ -149,10 +149,54 @@ uint8_t I2C_Transmit(I2C_Handle_t *pToI2CHandle, uint8_t *data, uint8_t length, 
 }
 
 
-uint8_t I2C_Receive(I2C_Handle_t *pToI2CHandle, uint8_t *data, uint8_t address) {
+uint8_t I2C_Receive(I2C_Handle_t *pToI2CHandle, uint8_t *data, uint8_t length, uint8_t address) {
+
+    // 1. Configure CR2 for receive
+    uint32_t volatile cr2 = 0;
+
+    // Set target address (7-bit)
+    cr2 |= ((uint32_t)address << 1);
+
+    // Set transfer direction to Read (RD_WRN = 1)
+    cr2 |= (1 << 10);
+
+    // Set number of bytes to read
+    cr2 |= ((uint32_t)length << 16);
+
+    // Auto-stop generation: hardware sends STOP after NBYTES
+    cr2 |= (1 << 25);
+
+    // Start condition
+    cr2 |= (1 << 13);
+
+    pToI2CHandle->pI2Cx->cr2 = cr2;
+
+    // 2. Read 'length' bytes
+    for (uint8_t i = 0; i < length; i++) {
+        // Wait for RXNE (Receive data register not empty) flag or NACK
+        while (!(pToI2CHandle->pI2Cx->isr & (1 << 2))) {
+            // Check for NACKF (bit 4) in case slave doesn't respond
+            if (pToI2CHandle->pI2Cx->isr & (1 << 4)) {
+                pToI2CHandle->pI2Cx->icr |= (1 << 4); // Clear NACK
+                return 1;
+            }
+        }
+
+        // Read data from RXDR
+        data[i] = (uint8_t)pToI2CHandle->pI2Cx->rxdr;
+    }
+
+    // 3. Wait for the STOP condition to be detected
+    // STOPF is bit 5 in ISR
+    while (!(pToI2CHandle->pI2Cx->isr & (1 << 5))) {}
+
+    // Clear STOPF flag by writing to ICR
+    pToI2CHandle->pI2Cx->icr |= (1 << 5);
+
+    // Reset CR2
+    pToI2CHandle->pI2Cx->cr2 = 0;
 
     return 0;
-
 }
 
 
