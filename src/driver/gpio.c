@@ -75,7 +75,7 @@ void GPIO_WriteToOutputPin(GPIO_Handle_t *pToGPIOHandle, uint8_t dataToWrite) {
 }
 
 void GPIO_WriteToOutputPort(GPIOx_RegTypeDef *pGPIOx, uint32_t dataToWrite) {
-    // write the entire data to the write port
+    // write the entire data to the GPIO port
     pGPIOx->odr = dataToWrite;
 
 }

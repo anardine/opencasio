@@ -18,10 +18,7 @@ int main() {
 
       // init peripherals section
 
-      //GPIO
-      pToGPIO1.GPIO_PinConfig.GPIO_PinAltFunMode = GPIO_AFH_AF2;
-
-
+      //GPIOs
 
       //main loop
 
