@@ -14,7 +14,8 @@ enum CORE_ERROR_CODE {
 enum PER_ERROR_CODE {
       RTC_CFG_ERR             = 1, // threw under an init failure condition
       RTC_ALARM_CFG_ERR       = 2, // threw under a failure to configure the alarm
-      RTC_TIMER_CFG_ERR       = 3  // threw under a failure to configure the timer
+      RTC_TIMER_CFG_ERR       = 3, // threw under a failure to configure the timer
+      MAG_INIT_CFG_ERR        = 4 // threw under a failure to configure the mag
 };
 
 #endif //OPENCAS_ERROR_H
