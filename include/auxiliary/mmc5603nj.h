@@ -10,13 +10,16 @@
 #include "driver/stm32wb55xx.h"
 #include "driver/i2c.h"
 
-//define the i2c addr of the MMC5603NJ
-uint8_t static const MAG_ADDR =  0x60;
+uint8_t static const MAG_ADDR =  0x60; //define the i2c addr of the MMC5603NJ
+typedef uint8_t magDataArray_t[10]; // array of 8bit data to hold the data from Mag
 
+uint8_t readFromMag(I2C_Handle_t *pToI2CHandle, uint8_t memAddr, uint8_t *data, uint8_t length);
+uint8_t writeToMag(I2C_Handle_t *pToI2CHandle, uint8_t memAddr, uint8_t *data, uint8_t length);
 uint8_t magInit(I2C_Handle_t *pToI2CHandle);
 uint8_t magCalibrate(I2C_Handle_t *pToI2CHandle);
-uint8_t magFetchStatus(I2C_Handle_t *pToI2CHandle);
-uint8_t magFetchData(I2C_Handle_t *pToI2CHandle);
-uint8_t magTranformToHeading(uint8_t *magRawDataArray, uint8_t *magHeadings);
+uint8_t magGetStatus(I2C_Handle_t *pToI2CHandle);
+uint8_t magGetData(I2C_Handle_t *pToI2CHandle, uint8_t *magRawDataArray);
+uint8_t magTranformToHeadings(uint8_t *magRawDataArray, uint8_t *magHeadings);
+uint8_t displayHeadings(I2C_Handle_t *pToI2CHandle, uint8_t *magHeadings);
 
 #endif //OPENCASIO_MMC5603NJ_H
