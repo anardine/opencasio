@@ -97,7 +97,7 @@ void I2C_DeInit(I2Cx_Reg_TypeDef *pI2Cx) {
         //TODO: Implement de-init
 }
 
-
+//Transmit the data via I2C to the Device Address given. Use length as 0 to just transmit the address. Legth is only used on data to be transmitted to the memAddr
 uint8_t I2C_Transmit(I2C_Handle_t *pToI2CHandle, uint8_t *data, uint8_t memAddr, uint8_t length, uint8_t deviceAddress) {
 
     // sums one to length as we're sending the page/word address too
