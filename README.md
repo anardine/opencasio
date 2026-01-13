@@ -1,6 +1,6 @@
-<img width="1140" height="517" alt="image" src="https://github.com/user-attachments/assets/1cbba678-d872-486f-8f7a-6ca3b4069be7" />
+<img width="1150" height="506" alt="Screenshot 2026-01-13 at 13 11 23" src="https://github.com/user-attachments/assets/a15cd5e8-34a2-47d6-af68-6591e4a638c1" />
 
-# OPENCASIO - New Features for the Classic Casio F-91W For Outdoor Use
+# OPENCASIO - Mag and Weather on Casio F-91W For Outdoor Use
 
 > [!IMPORTANT]
 > This page contains only the software implementation. For hardware details, BOOM, gerber and assembly files please refer to: https://oshwlab.com/anardine.ef/OPENCAS-new-gen-casio-f-91w
