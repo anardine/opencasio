@@ -73,9 +73,9 @@ uint8_t magCalibrate(I2C_Handle_t *pToI2CHandle) {
 }
 
 
-uint8_t magGetStatus(I2C_Handle_t *pToI2CHandle) {
-      return 0;
-}
+// uint8_t magGetStatus(I2C_Handle_t *pToI2CHandle) {
+//       return 0;
+// }
 
 //Gets the raw data from the sensor
 uint8_t magGetData(I2C_Handle_t *pToI2CHandle, uint8_t *magRawDataArray) {
@@ -98,13 +98,56 @@ uint8_t magGetData(I2C_Handle_t *pToI2CHandle, uint8_t *magRawDataArray) {
       return 0;
 }
 
-
-uint8_t magTranformToHeadings(uint8_t *magRawDataArray, uint8_t *magHeadings) {
-      return 0;
+//Receives the raw readings from the mag and returns the calculated heading in degree
+uint16_t magTransformToHeading(uint8_t *magRawDataArray) {
+      
+      // MMC5603NJ raw data format (from registers 0x00-0x08):
+      // Bytes 0-1: X axis (MSB, LSB)
+      // Bytes 2-3: Y axis (MSB, LSB)
+      // Bytes 4-5: Z axis (MSB, LSB)
+      // Byte 6: X lower 4 bits (bits 4-7, bits 0-3 unused)
+      // Byte 7: Y lower 4 bits (bits 4-7, bits 0-3 unused)
+      // Byte 8: Z lower 4 bits (bits 4-7, bits 0-3 unused)
+      
+      // Extract raw 20-bit X, Y, Z values
+      // X: 8-bit MSB (byte 0) + 8-bit LSB (byte 1) + 4-bit lower (byte 6 bits 4-7, shifted right by 4)
+      int32_t xRaw = ((int32_t)magRawDataArray[0] << 12) | ((int32_t)magRawDataArray[1] << 4) | (((int32_t)magRawDataArray[6] >> 4) & 0x0F);
+      
+      // Y: 8-bit MSB (byte 2) + 8-bit LSB (byte 3) + 4-bit lower (byte 7 bits 4-7, shifted right by 4)
+      int32_t yRaw = ((int32_t)magRawDataArray[2] << 12) | ((int32_t)magRawDataArray[3] << 4) | (((int32_t)magRawDataArray[7] >> 4) & 0x0F);
+      
+      // Z: 8-bit MSB (byte 4) + 8-bit LSB (byte 5) + 4-bit lower (byte 8 bits 4-7, shifted right by 4)
+      int32_t zRaw = ((int32_t)magRawDataArray[4] << 12) | ((int32_t)magRawDataArray[5] << 4) | (((int32_t)magRawDataArray[8] >> 4) & 0x0F);
+      
+      // Convert to signed values (offset binary encoding, subtract 2^19 to center at 0)
+      int32_t xSigned = xRaw - 524288;
+      int32_t ySigned = yRaw - 524288;
+      
+      // Calculate heading angle using arctangent
+      // Positive X points in the direction we want to measure (user facing direction)
+      // Positive Y points West (90° counter-clockwise from X)
+      // We want: 0° = +X direction, 90° = +Y rotated (East), 180° = -X, 270° = -Y
+      
+      double headingRad = atan2((double)xSigned, (double)ySigned);
+      double headingDeg = (headingRad * 180.0) / M_PI;
+      
+      // Normalize to 0-360 degrees
+      if (headingDeg < 0) {
+            headingDeg += 360.0;
+      }
+      
+      // Return heading value with 0.1 degree resolution (0-3600 representing 0-360.0 degrees)
+      uint16_t headingValue = (uint16_t)(headingDeg * 10.0);
+      
+      return headingValue;
 }
 
 
-uint8_t displayHeadings(I2C_Handle_t *pToI2CHandle, uint8_t *magHeadings) {
+uint8_t displayHeadings(I2C_Handle_t *pToI2CHandle, uint16_t headingValue) {
+
+      //TODO: Implement the display function of the heading
+
+
       return 0;
 }
 
