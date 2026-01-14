@@ -6,16 +6,13 @@
 #define OPENCAS_STM32WB55XX_H
 
 #include <stdint.h>
-
-//TODO: check all offsets from beginning to end to check whether all register maps are correct
-
-//Enable specific non-default behavior. Change to 1 if you want to use
-#define MAG_CONTINUOUS_MODE            0U
+#include "auxiliary/device_config.h"
 
 // Macro definitions
-
 #define F_CPU                          HSI
 #define HSI                            16000000UL
+
+//TODO: check all offsets from beginning to end to check whether all register maps are correct
 
 // Base address definitions for STM32WB55xx
 
