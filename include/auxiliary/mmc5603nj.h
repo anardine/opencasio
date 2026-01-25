@@ -20,7 +20,7 @@ uint8_t magInit(I2C_Handle_t *pToI2CHandle);
 uint8_t magCalibrate(I2C_Handle_t *pToI2CHandle);
 // uint8_t magGetStatus(I2C_Handle_t *pToI2CHandle);
 uint8_t magGetData(I2C_Handle_t *pToI2CHandle, uint8_t *magRawDataArray);
-uint8_t magTransformToHeading(uint8_t *magRawDataArray);
+uint16_t magTransformToHeading(uint8_t *magRawDataArray);
 uint8_t displayHeadings(I2C_Handle_t *pToI2CHandle, uint8_t *magHeadings);
 
 #endif //OPENCASIO_MMC5603NJ_H
