@@ -57,38 +57,9 @@ GPIO_Handle_t pToGPIOC15;
 // GPIOD handles
 GPIO_Handle_t pToGPIOD0;
 GPIO_Handle_t pToGPIOD1;
-GPIO_Handle_t pToGPIOD2;
-GPIO_Handle_t pToGPIOD3;
-GPIO_Handle_t pToGPIOD4;
-GPIO_Handle_t pToGPIOD5;
-GPIO_Handle_t pToGPIOD6;
-GPIO_Handle_t pToGPIOD7;
-GPIO_Handle_t pToGPIOD8;
-GPIO_Handle_t pToGPIOD9;
-GPIO_Handle_t pToGPIOD10;
-GPIO_Handle_t pToGPIOD11;
-GPIO_Handle_t pToGPIOD12;
-GPIO_Handle_t pToGPIOD13;
-GPIO_Handle_t pToGPIOD14;
-GPIO_Handle_t pToGPIOD15;
 
 // GPIOE handles
-GPIO_Handle_t pToGPIOE0;
-GPIO_Handle_t pToGPIOE1;
-GPIO_Handle_t pToGPIOE2;
-GPIO_Handle_t pToGPIOE3;
 GPIO_Handle_t pToGPIOE4;
-GPIO_Handle_t pToGPIOE5;
-GPIO_Handle_t pToGPIOE6;
-GPIO_Handle_t pToGPIOE7;
-GPIO_Handle_t pToGPIOE8;
-GPIO_Handle_t pToGPIOE9;
-GPIO_Handle_t pToGPIOE10;
-GPIO_Handle_t pToGPIOE11;
-GPIO_Handle_t pToGPIOE12;
-GPIO_Handle_t pToGPIOE13;
-GPIO_Handle_t pToGPIOE14;
-GPIO_Handle_t pToGPIOE15;
 
 
 
@@ -139,7 +110,7 @@ void I2C_GPIO_Init(void) {
 
     defaultCfg.GPIO_PinMode = GPIO_MODE_AF;
     defaultCfg.GPIO_PinAltFunMode = 4;
-    
+
     pins[0]->pGPIOx = GPIOB;
     pins[0]->GPIO_PinConfig = defaultCfg;
     pins[1]->pGPIOx = GPIOB;
