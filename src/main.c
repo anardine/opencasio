@@ -20,7 +20,7 @@ int main() {
 
       // set clock to 16MHz
       if (!initRCC()) return RCC_CFG_ERR;             //if clock is unable to be set to HSI, return RCC_CFG_ERR and terminate
-
+      
 
       // Init peripherals section
 

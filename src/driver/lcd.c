@@ -6,6 +6,8 @@
 
 void lcdInit(void) {
 
+//Used LCD segments and common pins must be configured as GPIO alternate functions
+
 
 
 
