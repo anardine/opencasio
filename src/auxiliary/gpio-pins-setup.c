@@ -92,6 +92,5 @@ void Btn_GPIO_Init(void) {
     pinPE4.GPIO_PinConfig.GPIO_PinMode = GPIO_MODE_INPUT;
     GPIO_Init(pinPE4);
 
-
 }
 
