@@ -1,67 +1,5 @@
 #include "driver/gpio.h"
-
-// GPIOA handles
-GPIO_Handle_t pToGPIOA0;
-GPIO_Handle_t pToGPIOA1;
-GPIO_Handle_t pToGPIOA2;
-GPIO_Handle_t pToGPIOA3;
-GPIO_Handle_t pToGPIOA4;
-GPIO_Handle_t pToGPIOA5;
-GPIO_Handle_t pToGPIOA6;
-GPIO_Handle_t pToGPIOA7;
-GPIO_Handle_t pToGPIOA8;
-GPIO_Handle_t pToGPIOA9;
-GPIO_Handle_t pToGPIOA10;
-GPIO_Handle_t pToGPIOA11;
-GPIO_Handle_t pToGPIOA12;
-GPIO_Handle_t pToGPIOA13;
-GPIO_Handle_t pToGPIOA14;
-GPIO_Handle_t pToGPIOA15;
-
-// GPIOB handles
-GPIO_Handle_t pToGPIOB0;
-GPIO_Handle_t pToGPIOB1;
-GPIO_Handle_t pToGPIOB2;
-GPIO_Handle_t pToGPIOB3;
-GPIO_Handle_t pToGPIOB4;
-GPIO_Handle_t pToGPIOB5;
-GPIO_Handle_t pToGPIOB6;
-GPIO_Handle_t pToGPIOB7;
-GPIO_Handle_t pToGPIOB8;
-GPIO_Handle_t pToGPIOB9;
-GPIO_Handle_t pToGPIOB10;
-GPIO_Handle_t pToGPIOB11;
-GPIO_Handle_t pToGPIOB12;
-GPIO_Handle_t pToGPIOB13;
-GPIO_Handle_t pToGPIOB14;
-GPIO_Handle_t pToGPIOB15;
-
-// GPIOC handles
-GPIO_Handle_t pToGPIOC0;
-GPIO_Handle_t pToGPIOC1;
-GPIO_Handle_t pToGPIOC2;
-GPIO_Handle_t pToGPIOC3;
-GPIO_Handle_t pToGPIOC4;
-GPIO_Handle_t pToGPIOC5;
-GPIO_Handle_t pToGPIOC6;
-GPIO_Handle_t pToGPIOC7;
-GPIO_Handle_t pToGPIOC8;
-GPIO_Handle_t pToGPIOC9;
-GPIO_Handle_t pToGPIOC10;
-GPIO_Handle_t pToGPIOC11;
-GPIO_Handle_t pToGPIOC12;
-GPIO_Handle_t pToGPIOC13;
-GPIO_Handle_t pToGPIOC14;
-GPIO_Handle_t pToGPIOC15;
-
-// GPIOD handles
-GPIO_Handle_t pToGPIOD0;
-GPIO_Handle_t pToGPIOD1;
-
-// GPIOE handles
-GPIO_Handle_t pToGPIOE4;
-
-
+#include "auxiliary/gpio-pins-setup.h"
 
 //setup the characteristics for the GPIO setup for all the LCD pins
 void LCD_GPIO_Init(void) {
@@ -77,10 +15,11 @@ void LCD_GPIO_Init(void) {
         &pToGPIOC0,  &pToGPIOC1,  &pToGPIOC2,  &pToGPIOC4,  &pToGPIOC5,  &pToGPIOC6,  &pToGPIOC10, &pToGPIOC11, &pToGPIOC12, //C
     };
 
+    //TODO: fix the initialization of the pin number  Today, the pin number will be the same as i, which is not aligned witht the pin number from the array
     for (int i = 0; i < 10; i++) {
         pins[i]->pGPIOx = GPIOA;
         pins[i]->GPIO_PinConfig = defaultCfg;
-        pins[i]->GPIO_PinConfig.GPIO_PinNumber = i; 
+        pins[i]->GPIO_PinConfig.GPIO_PinNumber = i;
         GPIO_Init(pins[i]);
     }
 
@@ -113,7 +52,45 @@ void I2C_GPIO_Init(void) {
 
     pins[0]->pGPIOx = GPIOB;
     pins[0]->GPIO_PinConfig = defaultCfg;
+    pins[0]->GPIO_PinConfig.GPIO_PinNumber = 8;
     pins[1]->pGPIOx = GPIOB;
     pins[1]->GPIO_PinConfig = defaultCfg;
+    pins[1]->GPIO_PinConfig.GPIO_PinNumber = 9;
+
+    GPIO_Init(pins[0]);
+    GPIO_Init(pins[1]);
 
 }
+
+void Buzzer_GPIO_Init(void) {
+
+    GPIO_Handle_t pinPA5 = &pToGPIOA5;
+
+    pinPA5.GPIO_PinConfig.GPIO_PinMode = GPIO_MODE_OUTPUT;
+    pinPA5.GPIO_PinConfig.GPIO_PinNumber = 5;
+    pinPA5->pGPIOx = GPIOA;
+
+    GPIO_Init(pinPA5);
+
+}
+
+void Btn_GPIO_Init(void) {
+
+    GPIO_Handle_t pinPC13 = &pToGPIOC13;    // BTN LED
+    GPIO_Handle_t pinPC3 = &pToGPIOC3;      // BTN MODE
+    GPIO_Handle_t pinPE4 = &pToGPIOE4;    // BTN ALARM
+
+    pinPC13->pGPIOx = GPIOC;
+    pinPC13.GPIO_PinConfig.GPIO_PinMode = GPIO_MODE_INPUT;
+    GPIO_Init(pinPC13);
+
+    pinPC3->pGPIOx = GPIOC;
+    pinPC3.GPIO_PinConfig.GPIO_PinMode = GPIO_MODE_INPUT;
+    GPIO_Init(pinPC3);
+
+    pinPE4->pGPIOx = GPIOE;
+    pinPE4.GPIO_PinConfig.GPIO_PinMode = GPIO_MODE_INPUT;
+    GPIO_Init(pinPE4);
+
+}
+
