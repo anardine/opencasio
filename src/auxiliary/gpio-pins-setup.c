@@ -4,6 +4,25 @@
 //setup the characteristics for the GPIO setup for all the LCD pins
 void LCD_GPIO_Init(void) {
 
+    // Define a structure to hold pin configuration data
+    typedef struct {
+        GPIOx_RegTypeDef *pGPIOx;
+        uint8_t pinNumber;
+    } LCD_GPIO_PinDef_t;
+
+    // Define all LCD pins with their GPIO port and pin number
+    const LCD_GPIO_PinDef_t pinDefinitions[] = {
+        // GPIO A
+        {GPIOA, 1},   {GPIOA, 2},   {GPIOA, 3},   {GPIOA, 4},   {GPIOA, 6},
+        {GPIOA, 7},   {GPIOA, 8},   {GPIOA, 9},   {GPIOA, 10},  {GPIOA, 15},
+        // GPIO B
+        {GPIOB, 3},   {GPIOB, 4},   {GPIOB, 5},   {GPIOB, 6},   {GPIOB, 7},
+        {GPIOB, 10},  {GPIOB, 11},  {GPIOB, 12},
+        // GPIO C
+        {GPIOC, 0},   {GPIOC, 1},   {GPIOC, 2},   {GPIOC, 4},   {GPIOC, 5},
+        {GPIOC, 6},   {GPIOC, 10},  {GPIOC, 11},  {GPIOC, 12},
+    };
+
     GPIO_PinConfig_t defaultCfg;
     defaultCfg.GPIO_PinMode = GPIO_MODE_AF;
     defaultCfg.GPIO_PinAltFunMode = 11; //All LCD pins are AF11 accordingly to the DS
@@ -15,28 +34,13 @@ void LCD_GPIO_Init(void) {
         &pToGPIOC0,  &pToGPIOC1,  &pToGPIOC2,  &pToGPIOC4,  &pToGPIOC5,  &pToGPIOC6,  &pToGPIOC10, &pToGPIOC11, &pToGPIOC12, //C
     };
 
-    //TODO: fix the initialization of the pin number  Today, the pin number will be the same as i, which is not aligned witht the pin number from the array
-    for (int i = 0; i < 10; i++) {
-        pins[i]->pGPIOx = GPIOA;
+    // Single loop initialization
+    for (uint8_t i = 0; i < 27; i++) {
+        pins[i]->pGPIOx = pinDefinitions[i].pGPIOx;
         pins[i]->GPIO_PinConfig = defaultCfg;
-        pins[i]->GPIO_PinConfig.GPIO_PinNumber = i;
-        GPIO_Init(pins[i]);
+        pins[i]->GPIO_PinConfig.GPIO_PinNumber = pinDefinitions[i].pinNumber;
+        GPIO_Init(pins[i]);  // If you have an init function
     }
-
-    for (int i = 10; i < 18; i++) {
-        pins[i]->pGPIOx = GPIOB;
-        pins[i]->GPIO_PinConfig = defaultCfg;
-        pins[i]->GPIO_PinConfig.GPIO_PinNumber = i; 
-        GPIO_Init(pins[i]);
-    }
-
-    for (int i = 21; i < 27; i++) {
-        pins[i]->pGPIOx = GPIOC;
-        pins[i]->GPIO_PinConfig = defaultCfg;
-        pins[i]->GPIO_PinConfig.GPIO_PinNumber = i; 
-        GPIO_Init(pins[i]);
-    }
-
 }
 
 void I2C_GPIO_Init(void) {
