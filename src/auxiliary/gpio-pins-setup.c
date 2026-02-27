@@ -1,27 +1,44 @@
 #include "driver/gpio.h"
 #include "auxiliary/gpio-pins-setup.h"
 
+//Define the ENUM
+
+enum PeripheralCode {
+    LCD_PER,
+    I2C_PER,
+    BUZ_PER,
+    BTN_PER,
+};
+
+// Define a structure to hold pin configuration data
+  typedef struct {
+      GPIOx_RegTypeDef *pGPIOx;
+      uint8_t pinNumber;
+      enum PeripheralCode perCode;
+  } LCD_GPIO_PinDef_t;
+
+// Define all LCD pins with their GPIO port and pin number
+const LCD_GPIO_PinDef_t pinDefinitions[] = {
+    // GPIO A
+    {GPIOA, 1, LCD_PER},   {GPIOA, 2, LCD_PER},   {GPIOA, 3, LCD_PER},
+    {GPIOA, 4, LCD_PER},   {GPIOA, 5, BUZ_PER},{GPIOA, 6, LCD_PER},   {GPIOA, 7, LCD_PER},
+    {GPIOA, 8, LCD_PER},   {GPIOA, 9, LCD_PER},   {GPIOA, 10, LCD_PER},
+    {GPIOA, 15, LCD_PER},
+    // GPIO B
+    {GPIOB, 3, LCD_PER},   {GPIOB, 4, LCD_PER},   {GPIOB, 5, LCD_PER},
+    {GPIOB, 6, LCD_PER},   {GPIOB, 7, LCD_PER},   {GPIOB, 8, I2C_PER},
+    {GPIOB, 9, I2C_PER},   {GPIOB, 10, LCD_PER},   {GPIOB, 11, LCD_PER},
+    {GPIOB, 12, LCD_PER},
+    // GPIO C
+    {GPIOC, 0, LCD_PER},   {GPIOC, 1, LCD_PER},   {GPIOC, 2, LCD_PER},
+    {GPIOC, 3, BTN_PER},   {GPIOC, 4, LCD_PER},   {GPIOC, 5, LCD_PER},   {GPIOC, 6, LCD_PER},
+    {GPIOC, 10, LCD_PER},  {GPIOC, 11, LCD_PER},  {GPIOC, 12, LCD_PER},  {GPIOC, 13, BTN_PER},
+    // GPIO E
+    {GPIOE, 4, BTN_PER}
+};
+
 //setup the characteristics for the GPIO setup for all the LCD pins
 void LCD_GPIO_Init(void) {
-
-    // Define a structure to hold pin configuration data
-    typedef struct {
-        GPIOx_RegTypeDef *pGPIOx;
-        uint8_t pinNumber;
-    } LCD_GPIO_PinDef_t;
-
-    // Define all LCD pins with their GPIO port and pin number
-    const LCD_GPIO_PinDef_t pinDefinitions[] = {
-        // GPIO A
-        {GPIOA, 1},   {GPIOA, 2},   {GPIOA, 3},   {GPIOA, 4},   {GPIOA, 6},
-        {GPIOA, 7},   {GPIOA, 8},   {GPIOA, 9},   {GPIOA, 10},  {GPIOA, 15},
-        // GPIO B
-        {GPIOB, 3},   {GPIOB, 4},   {GPIOB, 5},   {GPIOB, 6},   {GPIOB, 7},
-        {GPIOB, 10},  {GPIOB, 11},  {GPIOB, 12},
-        // GPIO C
-        {GPIOC, 0},   {GPIOC, 1},   {GPIOC, 2},   {GPIOC, 4},   {GPIOC, 5},
-        {GPIOC, 6},   {GPIOC, 10},  {GPIOC, 11},  {GPIOC, 12},
-    };
 
     GPIO_PinConfig_t defaultCfg;
     defaultCfg.GPIO_PinMode = GPIO_MODE_AF;
