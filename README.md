@@ -42,7 +42,7 @@ The following diagram below gives an overview of all the features and how they r
                          │                │                       
                     ┌────►                │                       
  ┌───────────┐      │    │                ├────┐    ┌───────────┐ 
- │   TEMP    │      │    └───────▲┌───────┘    │    │           │ 
+ │   T,P,H   │      │    └───────▲┌───────┘    │    │           │ 
  │  SENSOR   ◄──────┘            ││            └────►   LCD     │ 
  │           │   I2C       ┌─────┼▼─────┐           │           │ 
  └───────────┘             │            │           └───────────┘ 
@@ -56,9 +56,9 @@ The following diagram below gives an overview of all the features and how they r
 
 The code runs using `platformio` and the `ST-Link` interface for uploading and debugging.
 
-As of now, the code is still under development.
+As of now, the code is still under development. PRs are welcomed.
 
 
 ### How to Contribute
 
-This is a tough project to assembly by hand. All the parts were sourced and assembled using JLCPCB amazing factory. Since it's around \$40 per board (completely ready and assembled, around \$200 for five), feel free to order to split. You're welcome to develop this using bigger parts or take the challenge to solder them. Since this is a one-sided board, you can also use a solder plate.
+This is a tough project to assembly by hand. All the parts were sourced and assembled using JLCPCB amazing factory. Since it's around \$50 per board (completely ready and assembled, around \$250 for five), feel free to order to split. You're welcome to develop this using bigger parts or take the challenge to solder them. Since this is a one-sided board, you can also use a solder plate.
