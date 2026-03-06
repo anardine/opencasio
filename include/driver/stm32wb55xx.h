@@ -301,12 +301,14 @@ typedef struct
 
 // clock MSI macros
 #define MSI_RDY()                    (RCC->cr & (1 << 1))
+#define LSI1_RDY()                   (RCC->csr & (1 << 1))
 #define HSI_RDY()                    (RCC->cr & (1 << 10))
 #define HSI_CLK_SELECTED()           (RCC->cfgr & (1 << 3))
 #define SET_MSI_16                   (RCC->cr |= (1 << 7))
 #define SET_MSI_ON                   (RCC->cr |= (1 << 0))
 #define SET_MSI_OFF                  (RCC->cr &= ~(1 << 0))
 #define SET_HSI_ON                   (RCC->cr |= (1 << 8))
+#define SET_LSI1_ON                  (RCC->csr |= (1 << 0))
 #define SET_CLK_TO_HSI               (RCC->cfgr |= (1 << 0))
 
  //Define GPIO operations

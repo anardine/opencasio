@@ -19,9 +19,12 @@ uint8_t initRCC() {
         case 0x63:                                    //0x63 MSI ready (4MHz Default)
             SET_HSI_ON;                               //turn HSI on
             SET_CLK_TO_HSI;                           //set clock to HSI
+            SET_LSI1_ON;                              // enables the LSI clock for the LCD module
             SET_MSI_OFF;                              //once HSI is on, turn MSI off
-        if (HSI_RDY() && HSI_CLK_SELECTED()) {
-            return 1;                               // return true if HSI is now active
+        if (HSI_RDY()
+            && HSI_CLK_SELECTED()
+            && LSI1_RDY()) {
+            return 1;                               // return true if HSI is now active and LSI is ready for LCD
         }
             return 0;
 
