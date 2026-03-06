@@ -7,9 +7,15 @@
 #pragma once
 
 #include "driver/stm32wb55xx.h"
+#include "driver/rcc.h"
+
+typedef struct {
+      LCD_RegTypeDef *pToLCD;
+} LCD_Handler_t;
 
 
-void lcdInit(void);
+uint8_t LCD_Init(LCD_Handler_t *pToLCDHandler);
+
 void lcdBlink(void);
 void lcdDisable(void);
 void lcdGetStatus(void);
