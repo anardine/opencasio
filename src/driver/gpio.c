@@ -7,6 +7,13 @@
 
 uint8_t GPIO_Init(GPIO_Handle_t *pToGPIOHandle) {
 
+    //enable clock logic for the selected GPIO port
+    if (pToGPIOHandle->pGPIOx == GPIOA) enableRCC(GPIO_A_PER);
+    else if (pToGPIOHandle->pGPIOx == GPIOB) enableRCC(GPIO_B_PER);
+    else if (pToGPIOHandle->pGPIOx == GPIOC) enableRCC(GPIO_C_PER);
+    else if (pToGPIOHandle->pGPIOx == GPIOD) enableRCC(GPIO_D_PER);
+    else if (pToGPIOHandle->pGPIOx == GPIOE) enableRCC(GPIO_E_PER);
+
     // Identify the mode to set up
     uint8_t pin = pToGPIOHandle->GPIO_PinConfig.GPIO_PinNumber;
     uint8_t mode = pToGPIOHandle->GPIO_PinConfig.GPIO_PinMode;

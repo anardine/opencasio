@@ -7,6 +7,7 @@
 #pragma once
 
 #include "driver/stm32wb55xx.h"
+#include "driver/rcc.h"
 
 typedef struct {
       uint8_t GPIO_PinNumber;
