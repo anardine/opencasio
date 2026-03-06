@@ -63,10 +63,10 @@ GPIO_Handle_t *pToGPIOE4;
 
 
 enum PeripheralCode {
-    LCD_PER,
-    I2C_PER,
-    BUZ_PER,
-    BTN_PER,
+    PER_LCD,
+    PER_I2C,
+    PER_BUZ,
+    PER_BTN,
 };
 
 // Define a structure to hold pin configuration data
@@ -79,21 +79,21 @@ typedef struct {
 // Define all LCD pins with their GPIO port and pin number
 const LCD_GPIO_PinDef_t pinDefinitions[] = {
     // GPIO A
-    {GPIOA, 1, LCD_PER},   {GPIOA, 2, LCD_PER},   {GPIOA, 3, LCD_PER},
-    {GPIOA, 4, LCD_PER},   {GPIOA, 5, BUZ_PER},{GPIOA, 6, LCD_PER},   {GPIOA, 7, LCD_PER},
-    {GPIOA, 8, LCD_PER},   {GPIOA, 9, LCD_PER},   {GPIOA, 10, LCD_PER},
-    {GPIOA, 15, LCD_PER},
+    {GPIOA, 1, PER_LCD},   {GPIOA, 2, PER_LCD},   {GPIOA, 3, PER_LCD},
+    {GPIOA, 4, PER_LCD},   {GPIOA, 5, PER_BUZ},{GPIOA, 6, PER_LCD},   {GPIOA, 7, PER_LCD},
+    {GPIOA, 8, PER_LCD},   {GPIOA, 9, PER_LCD},   {GPIOA, 10, PER_LCD},
+    {GPIOA, 15, PER_LCD},
     // GPIO B
-    {GPIOB, 2, LCD_PER}, {GPIOB, 3, LCD_PER},   {GPIOB, 4, LCD_PER},
-    {GPIOB, 5, LCD_PER}, {GPIOB, 6, LCD_PER},   {GPIOB, 7, LCD_PER},
-    {GPIOB, 8, I2C_PER}, {GPIOB, 9, I2C_PER},   {GPIOB, 10, LCD_PER},
-    {GPIOB, 11, LCD_PER},{GPIOB, 12, LCD_PER},
+    {GPIOB, 2, PER_LCD}, {GPIOB, 3, PER_LCD},   {GPIOB, 4, PER_LCD},
+    {GPIOB, 5, PER_LCD}, {GPIOB, 6, PER_LCD},   {GPIOB, 7, PER_LCD},
+    {GPIOB, 8, PER_I2C}, {GPIOB, 9, PER_I2C},   {GPIOB, 10, PER_LCD},
+    {GPIOB, 11, PER_LCD},{GPIOB, 12, PER_LCD},
     // GPIO C
-    {GPIOC, 0, LCD_PER},   {GPIOC, 1, LCD_PER},   {GPIOC, 2, LCD_PER},
-    {GPIOC, 3, BTN_PER},   {GPIOC, 4, LCD_PER},   {GPIOC, 5, LCD_PER},   {GPIOC, 6, LCD_PER},
-    {GPIOC, 10, LCD_PER},  {GPIOC, 11, LCD_PER},  {GPIOC, 12, LCD_PER},  {GPIOC, 13, BTN_PER},
+    {GPIOC, 0, PER_LCD},   {GPIOC, 1, PER_LCD},   {GPIOC, 2, PER_LCD},
+    {GPIOC, 3, PER_BTN},   {GPIOC, 4, PER_LCD},   {GPIOC, 5, PER_LCD},   {GPIOC, 6, PER_LCD},
+    {GPIOC, 10, PER_LCD},  {GPIOC, 11, PER_LCD},  {GPIOC, 12, PER_LCD},  {GPIOC, 13, PER_BTN},
     // GPIO E
-    {GPIOE, 4, BTN_PER}
+    {GPIOE, 4, PER_BTN}
 };
 
 // TODO: Defensive programming with return of codes. For now the functions return void just for simplicity of first implementation
