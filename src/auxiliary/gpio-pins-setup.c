@@ -11,12 +11,12 @@ void LCD_GPIO_Init(void) {
     // Array of handles for GPIO pins
     GPIO_Handle_t *pins[] = {
         pToGPIOA1,  pToGPIOA2,  pToGPIOA3,  pToGPIOA4,  pToGPIOA6,  pToGPIOA7, pToGPIOA8,  pToGPIOA9,  pToGPIOA10,  pToGPIOA15, //A
-        pToGPIOB3,  pToGPIOB4,  pToGPIOB5,  pToGPIOB6,  pToGPIOB7, pToGPIOB10, pToGPIOB11, pToGPIOB12, //B
+        pToGPIOB2,  pToGPIOB3,  pToGPIOB4,  pToGPIOB5,  pToGPIOB6,  pToGPIOB7, pToGPIOB10, pToGPIOB11, pToGPIOB12, //B
         pToGPIOC0,  pToGPIOC1,  pToGPIOC2,  pToGPIOC4,  pToGPIOC5,  pToGPIOC6,  pToGPIOC10, pToGPIOC11, pToGPIOC12, //C
     };
 
     // Single loop initialization
-    for (uint8_t i = 0; i < 27; i++) {
+    for (uint8_t i = 0; i < 28; i++) {
         pins[i]->pGPIOx = pinDefinitions[i].pGPIOx;
         pins[i]->GPIO_PinConfig = defaultCfg;
         pins[i]->GPIO_PinConfig.GPIO_PinNumber = pinDefinitions[i].pinNumber;

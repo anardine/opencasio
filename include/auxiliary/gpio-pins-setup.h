@@ -84,10 +84,10 @@ const LCD_GPIO_PinDef_t pinDefinitions[] = {
     {GPIOA, 8, LCD_PER},   {GPIOA, 9, LCD_PER},   {GPIOA, 10, LCD_PER},
     {GPIOA, 15, LCD_PER},
     // GPIO B
-    {GPIOB, 3, LCD_PER},   {GPIOB, 4, LCD_PER},   {GPIOB, 5, LCD_PER},
-    {GPIOB, 6, LCD_PER},   {GPIOB, 7, LCD_PER},   {GPIOB, 8, I2C_PER},
-    {GPIOB, 9, I2C_PER},   {GPIOB, 10, LCD_PER},   {GPIOB, 11, LCD_PER},
-    {GPIOB, 12, LCD_PER},
+    {GPIOB, 2, LCD_PER}, {GPIOB, 3, LCD_PER},   {GPIOB, 4, LCD_PER},
+    {GPIOB, 5, LCD_PER}, {GPIOB, 6, LCD_PER},   {GPIOB, 7, LCD_PER},
+    {GPIOB, 8, I2C_PER}, {GPIOB, 9, I2C_PER},   {GPIOB, 10, LCD_PER},
+    {GPIOB, 11, LCD_PER},{GPIOB, 12, LCD_PER},
     // GPIO C
     {GPIOC, 0, LCD_PER},   {GPIOC, 1, LCD_PER},   {GPIOC, 2, LCD_PER},
     {GPIOC, 3, BTN_PER},   {GPIOC, 4, LCD_PER},   {GPIOC, 5, LCD_PER},   {GPIOC, 6, LCD_PER},
