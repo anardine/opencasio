@@ -3,7 +3,7 @@
 # OPENCASIO - Mag and Weather on Casio F-91W For Outdoor Use
 
 > [!IMPORTANT]
-> This page contains only the software implementation. For hardware details, BOOM, gerber and assembly files please refer to: https://oshwlab.com/anardine.ef/OPENCAS-new-gen-casio-f-91w
+> This page contains only the software implementation. For hardware details, BOOM, gerber and assembly files please refer to: https://oshwlab.com/anardine.ef/opencasio-casio-outdoor-replacement-board
 
 ## What is this?
 The OPENCASIO is a replacement board for the Casio F-91W, one of the most used wristwatches in the world.
