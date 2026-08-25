@@ -1,0 +1,873 @@
+                                                              ±30 Gauss, Monolithic, High
+                                                              Performance, Low Cost 3-axis
+                                                              Magnetic Sensor
+                                                                                                        MMC5603NJ
+FEATURES
+  Monolithic integrated 3-axis AMR magnetic
+   sensor and electronic circuits requiring fewer
+   external components
+  Superior Dynamic Range and Accuracy:
+    ±30 G FSR
+    20bits operation mode
+    0.0625mG per LSB resolution
+    2 mG total RMS noise
+    Enables heading accuracy of 1º
+  Sensor true frequency response up to 1KHz                                                FUNCTIONAL BLOCK DIAGRAM
+  Ultra-Small Wafer Level Package 0.8x0.8x0.4
+   mm                                                                             DESCRIPTION
+  On-chip automatic degaussing with built-in
+   SET/RESET function                                                             The MMC5603NJ is a monolithic complete 3-axis AMR
+    Eliminates thermal variation induced offset                                  magnetic sensor with on-chip signal processing and
+       error (Null field output)                                                  integrated digital bus (I2C fast mode and I3C interface),
+    Clears the residual magnetization resulting                                  the device can be connected directly to a
+       from strong external fields                                                microprocessor, eliminating the need for A/D
+  On-chip sensitivity compensation                                               converters or timing resources.
+  On-chip temperature sensor                                                     It can measure magnetic fields within the full scale
+  Selftest signal available                                                      range of 30 Gauss (G), with up to 0.0625mG per LSB
+  Data_ready Interrupt (I3C only)                                                resolution at 20bits operation mode and 2mG total RMS
+  Low power consumption                                                          noise level, enabling heading accuracy of 1º in
+  1 µA power down current                                                        electronic compass applications. Contact MEMSIC for
+  I2C slave, FAST (≤400 KHz) mode                                                access to advanced calibration and tilt-compensation
+                                                                                  algorithms.
+  I3C interface available
+  1.62V to 3.6V wide range single power supply                                   An integrated SET/RESET function provides for the
+  1.2V logic IO                                                                  elimination of error due to Null Field output change with
+  RoHS compliant                                                                 temperature. In addition it clears the sensors of any
+                                                                                  residual magnetic polarization resulting from exposure
+                                                                                  to strong external magnets. The SET/RESET function
+                                                                                  can be performed for each measurement or periodically
+APPLICATIONS
+                                                                                  as the specific application requires.
+  Electronic Compass & GPS Navigation
+  Position Sensing                                                               The MMC5603NJ is in wafer level package with an
+                                                                                  ultra-small size of 0.8x 0.8 x 0.4 mm and with an
+                                                                                  operating temperature range from -40 C to +85 C.
+
+
+
+
+Information furnished by MEMSIC is believed to be accurate and reliable.
+However, no responsibility is assumed by MEMSIC for its use, or for any
+infringements of patents or other rights of third parties which may result from
+its use. No license is granted by implication or otherwise under any patent or
+patent rights of MEMSIC.
+                                                                                  www.memsic.com
+
+
+MEMSIC MMC5603NJ Rev.B                                           Page 1 of 18                              Formal release: 1/17/2022
+SPECIFICATIONS (Measurements @ 25 C, unless otherwise noted; VDD= 1.8 V, Auto_SR_en=1, unless otherwise specified)
+               Parameter                                    Conditions                          Min               Typ                 Max                 Units
+Field Range (Each Axis)1                                 Total applied field                                      30                                      G
+Supply Voltage                                                  VDD                            1.62               1.8                  3.6                  V
+VIO                                                                                            1.2                1.8                 VDD                   V
+Supply Voltage rise time                                                                                                              10.0                 ms
+                                                               BW=00                                               3.4                 4.0                 mA
+Supply Current2,3
+                                                               BW=01                                               2.4                 3.0                 mA
+(100 measurements/second)
+                                                               BW=10                                               1.3                 1.6                 mA
+                                                               BW=11                                              0.75                 1.0                 mA
+Power Down Current3                                                                                                1.0                 1.2                 µA
+Operating Temperature                                                                           -40                                    85                  C
+Storage Temperature                                                                             -55                                   125                  C
+Linearity Error3                                           FS=±30 G
+                                                                                                                   0.5                0.75                %FS
+(Best fit straight line)                                 Happlied=±15 G
+Hysteresis3                                          3 sweeps across ±30 G                                        0.02                0.1                %FS
+Repeatability Error3                                 3 sweeps across ±30 G                                        0.02                0.1                %FS
+Alignment Error                                                                                                   1.0                3.0             Degrees
+Transverse Sensitivity                                                                                            2.0                5.0                %
+                                                               BW=00                                               1.5                2.5                mG
+                                                               BW=01                                               2.0                4.0                mG
+Total RMS Noise3
+                                                               BW=10                                               3.0                5.0                mG
+                                                               BW=11                                               4.0                7.0                mG
+Output resolution                                                                                                  20                                    Bits
+                                                               BW=00                             75                                                       Hz
+                                                               BW=01                            150                                                       Hz
+Max Output data rate4
+                                                               BW=10                            255                                                       Hz
+                                                               BW=11                            255                                  1000                 Hz
+Heading accuracy3,5                                                                                               1.0               3.0              Degrees
+                                                              30 G                              -5                                   5                   %
+Sensitivity3,6,8                                      With16bits operation                                        1024                                 counts/G
+                                                      With18bits operation                                        4096                                 counts/G
+                                                     With 20bits operation                                       16384                                 counts/G
+Sensitivity Change Over                                     -40~85 C
+                                                                                                                                       5                   %
+Temperature3                                         Delta from 25 C30 G
+                                                                                                -1.0                                   1.0                 G
+                                                      With16bits operation                                       32768                                   Counts
+Null Field Output8
+                                                      With18bits operation                                      131072                                   Counts
+                                                      With 20bits operation                                     524288                                   Counts
+Null Field Output Change Over
+                                                                                                                  0.2                1.0               mG/C
+Temperature3
+Temperature Sensor Output3                                                                      0.6                0.8                 1.0             C/Count
+Disturbing Field7                                                                               32                                                        G
+Maximum Exposed Field                                                                                                               10,000                G
+Output Repeatability3                                                                                              2.0               3.0                 mG
+
+NOTES:
+     1.   External magnetic field on each axis not continuously higher than 16G.
+     2.   Supply current is proportional to how many measurements performed per second, 75Hz (maximum) for BW=00.
+     3.   Based on 3lots characterization result.
+     4.   The 1000 Hz ODR is available by writing 255 into Register ODR and setting hpower to 1.
+     5.   MEMSIC product enables users to utilize heading accuracy to be 1.0 degree typical when using MEMSIC’s proprietary software or algorithm.
+     6.   Sensitivity of the orthogonal axes is analytically derived from raw data and is subsequently processed by MEMSIC software drivers.
+     7.   This is the magnitude of external field that can be tolerated without changing the sensor characteristics. If the disturbing field is exceeded, a SET/RESET
+          operation is required to restore proper sensor operation.
+     8.   Based on shipment test result.
+
+
+
+
+MEMSIC MMC5603NJ Rev. B                                                Page 2 of 18                                        Formal release: 1/17/2022
+I2C INTERFACE I/O CHARACTERISTICS (VIO=1.8 V)
+ Parameter                                Symbol              Test Condition               Min.           Typ.            Max.        Unit
+
+ Logic Input Low Level                    VIL                                              -0.5                       0.3* VIO         V
+ Logic Input High Level                   VIH                                             0.7*VIO                         VIO          V
+ Hysteresis of Schmitt input              Vhys                                             0.2                                         V
+ Logic Output Low Level                   VOL                                                                             0.4          V
+ Input Leakage Current                    Ii                  0.1VIO<Vin<0.9VIO            -10                             10         µA
+ SCL Clock Frequency                      fSCL                                              0                             400         kHz
+ START Hold Time                          tHD;STA                                          0.6                                        µS
+ START Setup Time                         tSU;STA                                          0.6                                        µS
+ LOW period of SCL                        tLOW                                             1.3                                        µS
+ HIGH period of SCL                       tHIGH                                            0.6                                        µS
+ Data Hold Time                           tHD;DAT                                           0                             0.9         µS
+ Data Setup Time                          tSU;DAT                                          0.1                                        µS
+ Rise Time                                tr                  From VIL to VIH                                             0.3         µS
+ Fall Time                                tf                  From VIH to VIL                                             0.3         µS
+ Bus Free Time Between STOP and
+                                          tBUF                                             1.3                                        µS
+ START
+ STOP Setup Time                          tSU;STO                                          0.6                                        µS
+
+
+
+
+  SDA
+
+          tf          tLOW            tSU;DAT           tf                                          tSP
+                               tr                                               tHD;STA                          tr        tBUF
+
+
+
+  SCL
+
+                    tHD;STA                                   tSU;STA                                 tSU;STO
+                                tHD;DAT         tHIGH                   Sr                                            P           S
+               S
+                                                        Timing Definition
+
+
+
+
+MEMSIC MMC5603NJ Rev. B                                      Page 3 of 18                            Formal release: 1/17/2022
+                                                                     MARKING ILLUSTRATION
+ABSOLUTE MAXIMUM RATINGS*
+Supply Voltage                                  -0.5 to +5 V
+Storage Temperature                       -55 C to +125 C
+Maximum Exposed Field                              10000 G
+Note: Stresses above those listed under Absolute Maximum
+Ratings may cause permanent damage to the device. This is
+a stress rating only; the functional operation of the device at                                                             Z
+                                                                                                                     X
+these or any other conditions above those indicated in the
+operational sections of this specification is not implied.
+Exposure to absolute maximum rating conditions for
+extended periods may affect the device’s reliability.                                                                Y
+
+Pin Description: WLP Package                                         Note: “Number” (top-left character) is used to
+                                                                     differentiate between similar devices. The black dot
+  Pin       Name                 Description              I/O        marks the location of pin one (1). The 2nd line
+                                                                     represents the device’s Lot Number.
+   A1        VSA            Connect to Ground              P
+
+   A2        SCL             Serial Clock Line             I
+
+   B1       VDD                  Power Supply              P
+                                                                     THEORY OF OPERATION
+   B2        SDA              Serial Data Line            I/O        The Anisotropic Magneto-Resistive (AMR) sensors are
+                                                                     special resistors made of permalloy thin film deposited
+                                                                     on a silicon wafer. During manufacturing, a strong
+                                                                     magnetic field is applied to the film to orient its magnetic
+All parts are shipped in tape and reel packaging with
+                                                                     domains in the same direction, establishing a
+10000pcs (or 5000pcs per requested) per 7” reel.
+                                                                     magnetization vector. Subsequently, an external
+Caution:                                                             magnetic field applied perpendicularly to the sides of
+This is an Electro-static Discharge (ESD) sensitive                  the film causes the magnetization to rotate and change
+device.                                                              angle. This effect causes the film’s resistance to vary
+                                                                     with the intensity of the applied magnetic field. The
+Ordering Guide:                                                      MEMSIC AMR sensor is incorporated into a
+                                                                     Wheatstone bridge configuration to maximize Signal to
+ MMC5603NJ                                                           Noise ratio. A change in magnetic field produces a
+                          Package type:
+                                                                     proportional change in differential voltage across the
+                           Code            Type                      Wheatstone bridge
+                                        WLP package                  However, the influence of a strong magnetic field (more
+                             J                                       than 30 G) in any direction could upset, or flip, the
+                                       RoHS compliant
+                                                                     polarity of the film, thus changing the sensor
+                                                                     characteristics. A strong restoring magnetic field must
+                           Performance Grade:
+                                                                     be applied momentarily to restore, or set, the sensor
+                           Code      Performance Grade               characteristics. The MEMSIC magnetic sensor has an
+                                                                     on-chip magnetically coupled strap: a SET/RESET
+                             N       Temp compensated                strap pulsed with a high current, to provide the restoring
+                                                                     magnetic field.
+
+
+
+
+MEMSIC MMC5603NJ Rev. B                                   Page 4 of 18                        Formal release: 1/17/2022
+EXTERNAL CIRCUITRY CONNECTION                                Details please refer to MEMSIC Magnetic Sensor
+                                                             Hardware Design Layout Guideline for Electronic
+The MMC5603NJ can operate from a single 1.62V to             Device.
+3.6V supply. The circuit connection diagrams below
+illustrate power supply connection options.
+                                                             POWER CONSUMPTION
+                                                             The power consumed by the device is proportional to
+                                                             the number of measurements taken per second. For
+                                                             example, when BW<1:0>=10, MMC5603NJ consumes
+                                                             1.3mA (typical) at 1.8V with 100 measurements per
+                                                             second. If only 1 measurements are performed per
+                                                             second, the current will be 1300*1/100=13µA.
+
+                                                             I2C INTERFACE DESCRIPTION
+                                                             A slave mode I2C circuit has been implemented into the
+                                                             MEMSIC magnetic sensor as a standard interface for
+                                                             customer applications. The A/D converter functionality
+                                                             have been added to the MEMSIC sensor, thereby
+                                                             increasing ease-of-use, and lowering power
+                                                             consumption, footprint and total solution cost.
+                                                             The I2C (or Inter IC bus) is an industry standard bi-
+                                                             directional two-wire interface bus. A master I2C device
+                                                             can operate READ/WRITE controls to 128 devices by
+                                                             device addressing. The MEMSIC magnetic sensor
+                                                             operates only in a slave mode, i.e. only responding to
+                                                             calls by a master device.
+
+<TOP VIEW>                                                   I2C BUS CHARACTERISTICS
+             Connection Block Diagram
+
+
+PIN DESCRIPTIONS
+VDD – This is the power supply pin. MEMSIC
+recommends a minimum bypass capacitor of 2.2 µF
+placed in close proximity to the VDD pin.
+VSA – This is the ground pin for the magnetic sensor.
+SDA – This pin is the I3C/I2C serial data line.
+SCL– This pin is the I3C/I2C serial clock line.
+
+HARDWARE DESIGN CONSIDERATION
+   Provide adequate separation distance to devices
+    that contain permanent magnets or generate               The two wires in the I2C bus are called SDA (serial data
+    magnetic fields (e.g. speakers, coils, inductors)        line) and SCL (serial clock line). In order for a data
+    The combined magnetic field to be measured and           transfer to start, the bus has to be free, which is defined
+    interference magnetic field should be less than the      by both wires in a HIGH output state. Due to the open-
+    full scale range of the MMC5603NJ (±30 G).               drain/pull-up resistor structure and wired Boolean
+   Provide adequate separation distance to current          “AND” operation, any device on the bus can pull lines
+    carrying traces. Do not route current carrying           low and overwrite a HIGH signal. The data on the SDA
+    traces under the sensor or on the other side of the      line has to be stable during the HIGH period of the SCL
+    PCB opposite the device.                                 line. In other words, valid data can only change when
+                                                             the SCL line is LOW.
+   Do not cover the sensor with magnetized material
+    or material that may become magnetized, (e.g.,           Note: Rp selection guide: 2.7Kohm for a short I2C bus
+    shield box, LCD, battery, iron bearing material).        length (less than 10 cm), and 10Kohm for a bus length
+   Do not place the device opposite magnetized              less than 5 cm.
+    material or material that may become magnetized
+    located on the other side of the PCB.
+
+MEMSIC MMC5603NJ Rev. B                           Page 5 of 18                        Formal release: 1/17/2022
+REGISTER MAP
+Register Name             Address (HEX)            Description
+Xout0                     00H                      Xout[19:12]
+Xout1                     01H                      Xout[11:4]
+Yout0                     02H                      Yout[19:12]
+Yout1                     03H                      Yout[11:4]
+Zout0                     04H                      Zout[19:12]
+Zout1                     05H                      Zout[11:4]
+Xout2                     06H                      Xout[3:0]
+Yout2                     07H                      Yout[3:0]
+Zout2                     08H                      Zout[3:0]
+Tout                      09H                      Temperature output
+Status1                   18H                      Device status1
+ODR                       1AH                      Output data rate
+Internal control 0        1BH                      Control register 0
+Internal control 1        1CH                      Control register 1
+Internal control 2        1DH                      Control register 2
+ST_X_TH                   1EH                      X-axis selftest threshold
+ST_Y_TH                   1FH                      Y-axis selftest threshold
+ST_Z_TH                   20H                      Z-axis selftest threshold
+ST_X                      27H                      X-axis selftest set value
+ST_Y                      28H                      Y-axis selftest set value
+ST_Z                      29H                      Z-axis selftest set value
+Product ID                39H                      Product ID
+
+
+
+
+MEMSIC MMC5603NJ Rev. B             Page 6 of 18                         Formal release: 1/17/2022
+REGISTER DETAILS
+Xout0, Xout1, Xout2
+ Xout0                   7            6               5            4           3           2         1      0
+ Addr: 00H                                                         Xout[19:12]
+ Mode                                                              Read-only
+
+ Xout1                   7        6               5               4           3        2          1         0
+ Addr: 01H                                                         Xout[11:4]
+ Mode                                                              Read-only
+
+ Xout2                   7        6               5               4                3   2          1         0
+ Addr: 06H                            Xout[3:0]                                    0   0          0         0
+ Mode                                                                 Read-only
+
+X-axis output, unsigned format.
+             X-axis output                                  Data
+        16bits operation mode                             Xout[19:4]
+        18bits operation mode                             Xout[19:2]
+        20bits operation mode                             Xout[19:0]
+
+Yout0, Yout1, Yout2
+ Yout0                   7            6               5            4           3        2         1         0
+ Addr: 02H                                                         Yout[19:12]
+ Mode                                                              Read-only
+
+ Yout1                   7        6               5               4           3        2          1         0
+ Addr: 03H                                                         Yout[11:4]
+ Mode                                                              Read-only
+
+ Yout2                   7        6               5               4                3   2          1         0
+ Addr: 07H                            Yout[3:0]                                    0   0          0         0
+ Mode                                                                 Read-only
+
+Y-axis output, unsigned format.
+             Y-axis output                                  Data
+        16bits operation mode                             Yout[19:4]
+        18bits operation mode                             Yout[19:2]
+        20bits operation mode                             Yout[19:0]
+
+Zout0, Zout1, Zout2
+ Zout0                   7        6               5               4           3        2         1          0
+ Addr: 04H                                                         Zout[19:12]
+ Mode                                                               Read-only
+
+ Zout1                   7        6               5               4                3   2         1          0
+ Addr: 05H                                                            Zout[11:4]
+ Mode                                                                 Read-only
+
+ Zout2                   7        6               5               4                3   2         1          0
+                                      Zout[3:0]                                    0   0         0          0
+ Addr: 08H
+ Mode                                                                 Read-only
+
+
+
+
+MEMSIC MMC5603NJ Rev. B                           Page 7 of 18                         Formal release: 1/17/2022
+Z-axis output, unsigned format.
+             Z-axis output                              Data
+        16bits operation mode                         Zout[19:4]
+        18bits operation mode                         Zout[19:2]
+        20bits operation mode                         Zout[19:0]
+
+Temperature Out
+ Temperature           7          6           5           4           3          2          1           0
+ Addr: 09H                                                  Tout[7:0]
+ Mode                                                       Read-only
+  Temperature output, unsigned format. The range is -75-125°C, about 0.8°C/LSB, 00000000 stands for -75°C
+
+Status1
+ Device Status1        7             6         5           4          3             2          1            0
+                    Meas_t_       Meas_m     Sat_se     OTP_read               Mdt_flag     Meas_t_d     Meas_m_
+ Addr: 18H                                                         ST_Fail
+                     done          _done      nsor       _done                 _int          one_int     done_int
+ Reset Value           0             0         0           0          0             0          0            0
+ Mode                                                         Read-only
+
+ Bit Name             Description
+ Meas_m_done_int      Factory use only, reset value is 0.
+ Meas_t_done_int      Factory use only, reset value is 0.
+ Mdt_flag_int         Factory use only, reset value is 0.
+ ST_Fail              Factory use only, reset value is 0.
+                      This bit is an indicator of successfully reading its OTP memory either as part of its power up
+ OTP_read_done        sequence, or after an I2C command that reloads the OTP memory, such as resetting the chip
+                      and refreshing the OTP registers.
+ Sat_sensor           This bit is an indicator of the selftest signal, it keeps low once the device PASS selftest.
+                      This bit indicates that a measurement of magnetic field is done and the data is ready to be
+ Meas_m_done
+                      read. This bit is reset only when any of the magnetic data registers is read.
+                      This bit indicates that a measurement of temperature is done and the data is ready to be read.
+ Meas_t_done
+                      This bit is reset only when the temperature register is read.
+
+ODR
+ ODR                    7           6           5            4          3          2            1            0
+ Addr: 1AH                                                     ODR[7:0]
+ Reset Value            0           0           0            0          0          0            0            0
+ Mode                                                          Write-only
+
+ Bit Name             Description
+                      This byte defines the frequency of the continuous-mode measurements. In order to enter the
+                      continuous mode, this byte should not be zero. The configurable ODR is 1 to 255, with
+                      increment of 1. The 1000 Hz ODR is available by writing 255 into this byte and setting hpower
+                      to 1. The maximum reachable ODR as below:
+
+ ODR[7:0]              BW         Automatic SET/RESET        No SET/RESET              ODR range
+                       00         75Hz                       150 Hz                    1~75
+                       01         150 Hz                     255 Hz                    1~150
+                       10         255 Hz                     255 Hz                    1~255
+                       11         255Hz                      hpower=0: 255 Hz;         1~255
+                                                             hpower=1: 1000 Hz
+
+
+
+
+MEMSIC MMC5603NJ Rev. B                             Page 8 of 18                       Formal release: 1/17/2022
+Internal Control 0
+ Control
+                         7            6            5             4                3        2            1            0
+ Register 0
+                     Cmm_fre      Auto_st_     Auto_SR                                 Start_MD     Take_me     Take_me
+ Addr: 1BH                                                   Do Reset       Do Set
+                      q_en           en          _en                                       T          as_T       as_M
+ Reset Value            0             0           0              0                0        0            0          0
+ Mode                                                                Write-only
+
+ Bit Name            Description
+                     Take Measure of Magnetic field, or TM_M bit. Writing a 1 into this location causes the chip to
+ Take_meas_M
+                     perform a magnetic measurement. This bit is self-clearing at the end of each measurement.
+                     Take Measure of Temperature, or TM_T bit. Writing a 1 into this location causes the chip to
+ Take_meas_T
+                     perform a temperature measurement. This bit is self-clearing at the end of each measurement.
+ Start_MDT           Factory use only, reset value is 0.
+                     Writing a 1 into this location will cause the chip to do the Set operation, which will allow large set
+ Do Set              current to flow through the sensor coils for 375ns. This bit is self-cleared at the end of Set
+                     operation.
+                     Writing a 1 into this location will cause the chip to do the Reset operation, which will allow large
+ Do Reset            reset current to flow through the sensor coils for 375ns. This bit is self-cleared at the end of Reset
+                     operation.
+                     Writing a 1 into this location will enable the function of automatic set/reset. This function applies
+ Auto_SR_en          to both on-demand and continuous-time measurements. This bit must be set to 1 in order to
+                     activate the feature of periodic set. This bit is recommended to set to “1” in the application.
+                     Writing a 1 into this location will enable the function of automatic self-test. The threshold in
+ Auto_st_en          register 1EH, 1FH, 20H should be set before this bit is set to 1. This bit clears itself after the
+                     operation is completed.
+                     Writing a 1 into this location will start the calculation of the measurement period according to the
+ Cmm_freq_en         ODR. This bit should be set before continuous-mode measurements are started. This bit is self-
+                     cleared after the measurement period is calculated by internal circuits.
+
+Internal Control 1
+ Control                  7               6            5             4            3        2            1            0
+ Register 1
+ Addr: 1CH           Sw_reset       St_enm        St_enp       Z-inhibit   Y-inhibit    X-inhibit     BW1          BW0
+ Reset Value            0              0             0             0           0            0          0            0
+ Mode                                                              Write-only
+
+
+ Bit Name                                                        Description
+                     These bandwidth selection bits adjust the length of the decimation filter. They control the duration
+                     of each measurement.
+                      BW1         BW0       Measurement Time
+                      0           0         6.6ms
+ BW0 &
+                      0           1         3.5ms
+ BW1
+                      1           0         2.0ms
+                      1           1         1.2ms
+                     Note: X/Y/Z channel measurements are taken sequentially. Delay Time among those
+                     measurements is 1/3 of the Measurement Time defined in the table.
+ X-inhibit           Writing “1” will disable this channel, and reduce Measurement Time and total charge per
+ Y-inhibit           measurement.When a channel is disabled it is simply skipped during Take Measure routine. Its
+                     output register is not reset and will maintain the last value written to it when this channel was
+ Z-inhibit
+                     active. Note: Y/Z needs to be inhibited the same time in case needed.
+                     Writing 1 into this location will bring a DC current through the self-test coil of the sensor. This
+ St_enp              current will cause an offset of the magnetic field. This function is used to check whether the
+                     sensor has been saturated.
+                     The function of this bit is similar to ST_ENP, but the offset of the magnetic field is of opposite
+ St_enm
+                     polarity.
+
+MEMSIC MMC5603NJ Rev. B                                Page 9 of 18                        Formal release: 1/17/2022
+                     Software Reset. Writing “1”will cause the part to reset, similar to power-up. It will clear all registers
+ Sw_reset
+                     and also re-read OTP as part of its startup routine. The power on time is 20mS.
+
+
+
+Internal Control 2
+ Control             7            6             5              4              3             2              1                0
+ Register 2
+                 hpower       INT_meas      INT_mdt_       Cmm_en      En_prd_s                      Prd_set[2:0]
+ Addr: 1DH
+                              _done_en         en                          et
+ Reset Value         0            0             0              0           0                0              0                0
+ Mode                                                            Write-only
+
+
+ Bit Name                                                             Description
+                          These bits determine how many measurements are done before a set is executed, when the
+                          part is in continuous mode and the automatic set/reset is enabled. From 000 to 111, the sensor
+ Prd_set[2:0]             will do one set for every 1, 25, 75, 100, 250, 500, 1000, and 2000 samples. In order to enable
+                          this feature, both En_prd_set and Auto_SR must be set to 1, and the part should work in
+                          continuous mode. Please note that during this operation, the sensor will not be reset.
+ En_prd_set               Writing 1 into this location will enable the function of periodical set.
+                          The device will enter continuous mode, if ODR has been set to a non-zero value and a 1 has
+ Cmm_en                   been written into Cmm_freq_en. The internal counter will start counting as well since this bit
+                          is set.
+ INT_mdt_en               Factory use only, reset value is 0.
+ INT_meas_done_en         Factory use only, reset value is 0.
+ hpower                   If this bit is set to 1 to achieve 1000Hz ODR.
+
+
+
+ST_X_TH
+ ST_X_TH                  7             6            5             4            3            2            1             0
+ Addr: 1EH                                                         ST_X_TH[7:0]
+ Reset Value              0             0            0             0            0            0            0             0
+ Mode                                                                Write-only
+X-axis selftest threshold
+
+ST_Y_TH
+ ST_Y_TH                  7             6            5             4            3            2            1             0
+ Addr: 1FH                                                         ST_Y_TH[7:0]
+ Reset Value              0             0            0             0            0            0            0             0
+ Mode                                                                Write-only
+Y-axis selftest threshold
+
+ST_Z_TH
+ ST_Z_TH                  7             6            5             4            3            2            1             0
+ Addr: 20H                                                         ST_Z_TH[7:0]
+ Reset Value              0             0            0             0            0            0            0             0
+ Mode                                                                Write-only
+Z-axis selftest threshold
+
+ST_X
+ ST_X                     7             6            5             4          3              2            1             0
+ Addr: 27H                                                         ST_X[7:0]
+ Reset Value                                                  Factory stored value
+ Mode                                                             Read/Write
+X-axis selftest set value
+
+
+MEMSIC MMC5603NJ Rev. B                              Page 10 of 18                           Formal release: 1/17/2022
+ST_Y
+ ST_Y                     7          6    5          4           3      2         1          0
+ Addr: 28H                                            ST_Y[7:0]
+ Reset Value                                     Factory stored value
+ Mode                                                Read/Write
+Y-axis selftest set value
+
+ST_Z
+ ST_Z                     7          6    5          4           3      2         1          0
+ Addr: 29H                                            ST_Z[7:0]
+ Reset Value                                     Factory stored value
+ Mode                                                Read/Write
+Z-axis selftest set value
+
+Product ID 1
+ Product ID 1            7            6   5         4           3       2         1          0
+ Addr: 39H                                         Product ID1[7:0]
+ Reset Value             0            0   0         1           0       0         0          0
+ Mode                                                 Read-only
+Product ID, used to recognize device.
+
+
+
+
+MEMSIC MMC5603NJ Rev. B                   Page 11 of 18                 Formal release: 1/17/2022
+I2C INTERFACE OPERATION:                                        be written. The MEMSIC device should acknowledge
+                                                                receipt of the address (9th SCL pulse, SDA pulled low).
+DATA TRANSFER                                                   3rd cycle: The Master device writes to the Internal
+A data transfer is started with a “START” condition and         Control Register 0 the code [00100001] (TM_M and
+ended with a “STOP” condition. A “START” condition is           Auto_SR_en high) to initiate data acquisition. The
+defined by a HIGH to LOW transition on the SDA line             MEMSIC device should send an Acknowledge and
+while SCL line is HIGH. A “STOP” condition is defined           internally initiate a measurement (collect x, y and z
+by a LOW to HIGH transition on the SDA line while the           data). A STOP condition indicates the end of the write
+SCL line is held HIGH. All data transfer in I2C system          operation.
+are 8-bits long. Each byte has to be followed by an             4th cycle: The Master device sends a START
+acknowledge bit. Each data transfer involves a total of         command followed by the MEMSIC device’s seven bit
+9 clock cycles. Data is transferred starting with the most      address, and finally the eighth bit set low to indicate a
+significant bit (MSB).                                          WRITE. An Acknowledge should be send by the
+After a START condition, the master device calls a              MEMSIC device in response.
+specific slave device by sending its 7-bit address with         5th cycle: The Master device sends the MEMSIC
+the 8th bit (LSB) indicating that either a READ or WRITE        Device Status Register1 as the address to read.
+operation will follow, [1] for READ and [0] for WRITE.
+The MEMSIC device 7-bit device address is [0110000]             6th cycle: The Master device sends a START
+where the three LSB’s are pre-programmed into the               command followed by the MEMSIC device’s seven bit
+MMC5603NJ by the factory.                                       address, and finally the eighth bit set high to indicate a
+Note: A total of 8 different addresses can be pre-              READ. An Acknowledge should be send by the
+programmed into MEMSIC device by the factory. This              MEMSIC device in response.
+variation of I2C address avoids a potential address             7th cycle: The Master device cycles the SCL line. This
+conflict, either by ICs from other manufacturers or by          causes the Status Register data to appear on SDA line.
+other MEMSIC devices on the same bus.                           Continuously read the Device Status Register1 until the
+The initial addressing of the slave is always followed by       Meas_M_Done bit (bit 1) is set to ‘1’. This indicates that
+the master writing the number of the slave register to          data for the x, y, and z sensors is available to be read.
+be read or written, so this initial addressing always           8th cycle: The Master device sends a START
+indicates a WRITE operation by sending [01100000].              command followed by the MEMSIC device’s seven bit
+After being addressed, the MEMSIC device being                  address, and finally the eighth bit set low to indicate a
+called should respond by an “Acknowledge” signal by             WRITE. An Acknowledge should be send by the
+pulling SDA line LOW. Subsequent communication                  MEMSIC device in response.
+bytes can either be
+a) The data to be written to the device register, or            9th cycle: The Master device sends a [00000000] (Xout
+                                                                LSB register address) as the register address to read.
+b) Another START condition followed by the device               10th cycle: The Master device calls the MEMSIC
+   address indicating a READ operation [01100001],              device’s address with a READ (8th SCL cycle SDA line
+   and then the master reads the register data.                 high). An Acknowledge should be send by the MEMSIC
+                                                                device in response.
+Multiple data bytes can be written or read to numerically
+sequential registers without the need of another START          11th cycle: Master device continues to cycle the SCL
+condition. Data transfer is terminated by a STOP                line, and each consecutive byte of data from the X, Y
+condition or another START condition. Two detailed              and Z registers should appear on the SDA line. The
+examples of communicating with the MEMSIC device                internal memory address pointer automatically moves
+are listed below for the actions of acquiring a magnetic        to the next byte. The Master device acknowledges
+field measurement and magnetizing the sensor.                   each. Thus:
+                                                                12th cycle: Xout[19:12].
+EXAMPLE OF MEASUREMENT
+                                                                13th cycle: Xout[11:4].
+1st cycle: A START condition is established by the
+Master Device followed by a call to the slave address           14th cycle: Yout[19:12].
+[0110000] with the eighth bit held low to indicate a            15th cycle: Yout[11:4].
+WRITE request.
+                                                                16th cycle: Zout[19:12].
+2nd cycle: After an acknowledge signal is received by
+the master device (MEMSIC device pulls SDA line low             17th cycle: Zout[11:4].
+during 9th SCL pulse), the master device sends the
+                                                                18th cycle: Xout[3:2] for 18bits mode. Xout[3:0] for
+address of Control Register 0 as the target register to
+                                                                20bits mode
+MEMSIC MMC5603NJ Rev. B                              Page 12 of 18                        Formal release: 1/17/2022
+19th cycle: Yout[3:2] for 18bits mode. Yout[3:0] for            3rd cycle: The Master device writes to the MEMSIC
+20bits mode                                                     device’s Internal Control 0 register the code [00010000]
+                                                                (RESET bit) to initiate a RESET action. The MEMSIC
+20th cycle: Zout[3:2] for 18bits mode. Zout[3:0] for
+                                                                device should send an Acknowledge.
+20bits mode:0].
+                                                                At this point, the MEMSIC AMR sensors have been
+Master ends communications by NOT sending an
+                                                                conditioned for optimum performance and data
+‘Acknowledge’ and also follows with a ‘STOP’
+                                                                measurements can commence.
+command.
+                                                                Note:
+EXAMPLE OF CONTINUOUS MODE                                       The RESET action can be skipped for most
+The MMC5603NJ is designed with an on-chip                         applications
+continuous mode, or CMM. When enabled, the part will
+periodically take a measurement and store the results           USING SET AND RESET TO REMOVE BRIDGE OFFSET
+in I2C register. The frequency of these measurements
+is controlled by a setting in I2C register. The results of      The integrated SET and RESET functions of the
+the last measurement can be read by the host. This              MMC5603NJ enables the user to remove the error
+mode, while it consumes more current, eliminates the            associated with bridge Offset change as a function of
+need for the host to request measurements every time.           temperature, thereby enabling more precise heading
+                                                                measurements over a wider temperature than
+First the user needs to write the desired number into           competitive technologies. The SET and RESET
+ODR[7:0]. It should be a non-zero integer, otherwise            functions effectively alternately flip the magnetic
+the continuous mode will not be activated. Then                 sensing polarity of the sensing elements of the device.
+Cmm_freq_en is set to 1 to let the internal circuitry to        1)   The most accurate magnetic field measurements
+calculate the target number for the counter. After that              can be obtained by using the protocol described
+Cmm_en is set to 1 and the continuous mode is                        as follows: Perform SET. This sets the internal
+started and the internal counter starts to count at the              magnetization of the sensing resistors in the
+same time.                                                           direction of the SET field.
+                                                                2)   Perform MEASUREMENT. This measurement
+EXAMPLE OF SET
+                                                                     will contain not only the sensors response to the
+1st cycle: A START condition is established by the                   external magnetic field, H, but also the Offset; in
+Master Device followed by a call to the slave address                other words,
+[0110000] with the eighth bit held low to indicate a
+                                                                     Output1 = +H + Offset.
+WRITE request.
+                                                                3)   Perform RESET. This resets the internal
+2nd cycle: After an acknowledge signal is received by
+                                                                     magnetization of the sensing resistors in the
+the master device (The MEMSIC device pulls the SDA
+                                                                     direction of the RESET field, which is opposite to
+line low during the 9th SCL pulse), the master device
+                                                                     the SET field (180o opposed).
+sends [00011011] as the target address (Internal
+Control Register 0). The MEMSIC device should                   4)   Perform MEASUREMENT. This measurement
+acknowledge receipt of the address (9th SCL pulse).                  will contain both the sensors response to the
+                                                                     external field and also the Offset. In other words,
+3rd cycle: The Master device writes to the MEMSIC
+                                                                     Output2 = -H + Offset.
+device’s Internal Control 0 register the code [00001000]
+(SET bit) to initiate a SET action. The MEMSIC device
+                                                                5)   Finally, calculate H by subtracting the two
+should send an Acknowledge.
+                                                                     measurements and dividing by 2. This procedure
+                                                                     effectively eliminates the Offset from the
+EXAMPLE OF RESET                                                     measurement and therefore any changes in the
+1st cycle: A START condition is established by the                   Offset over temperature.
+Master Device followed by a call to the slave address                H = (Output1-Ouput2)/2.
+[0110000] with the eighth bit held low to indicate a
+WRITE request.                                                  Note:
+ nd
+2 cycle: After an acknowledge signal is received by                 To calculate and store the offset; add the two
+the master device (The MEMSIC device pulls the SDA                   measurements and divide by 2. This calculated
+line low during the 9th SCL pulse), the master device                offset value can be subtracted from subsequent
+sends [00011011] as the target address (Internal                     measurements to obtain H directly from each
+Control Register 0). The MEMSIC device should                        measurement.
+acknowledge receipt of the address (9th SCL pulse).
+
+
+MEMSIC MMC5603NJ Rev. B                              Page 13 of 18                      Formal release: 1/17/2022
+                                                               3)   Write the threshold in to the register 1EH, 1FH,
+                                                                    and 20H.
+EXAMPLE OF SELFTEST                                            4)   Write [01000001] (TM_M and auto_st_en high) to
+The MMC5603NJ is designed with an on-chip selftest                  Internal Control Register 1BH to initiate a selftest.
+signal to do self-diagnose of the sensor:                      5)   Read out value of Sat_sensor bit at the Device
+1)   Read out the selftest signal stored at register 27H,           Status register 18H.
+     28H, and 29H.                                             6)   Sat_sensor=0, PASS selftest.
+2)   Calculate the selftest signal threshold with 80% of
+     the data readout from above registers.
+
+
+
+
+MEMSIC MMC5603NJ Rev. B                             Page 14 of 18                      Formal release: 1/17/2022
+OPERATING TIMING
+
+VDD
+
+
+ I2C                     S         T            R     T             R     T               R            S         T         R
+       tOp     tRF           tSR                                                                           tSR       tTM
+                                        tTM                   tTM                   tTM
+
+
+
+
+       S     SET/RESET
+
+
+       T     Take Measurement
+
+
+       R     Read data
+
+
+             Repeat T & R
+
+
+             Wait the device to be ready for next operation
+
+
+                                                      Operating Timing Diagram
+
+                         Parameter                                       Symbol               Min.           Max.          Unit
+
+ Time to operate device after VDD valid                                       tOp              5                               ms
+ Minimum time interval between SET or RESET to
+                                                                              tSR              1                               ms
+ other operations
+                                                                        tTM BW=00             6.6                              ms
+
+                                                                        tTM BW=01             3.5                              ms
+
+                                                                        tTM BW=10             2.0                              ms
+
+                                                                        tTM BW=11             1.2                              ms
+
+
+
+
+MEMSIC MMC5603NJ Rev. B                                       Page 15 of 18                          Formal release: 1/17/2022
+SOLDERING RECOMMENDATIONS
+MEMSIC magnetic sensor is capable of withstanding an MSL1 / 260 ºC solder reflow. Following is the reflow profile:
+
+
+
+
+Note:
+  The second reflow cycle should be applied after device has cooled down to 25 ℃ (room temperature)
+  This is the reflow profile for Pb free process
+  The peak temperature on the sensor surface should be limited under 260 ℃ for 10 seconds.
+  Solder paste’s reflow recommendation should be followed to get the best SMT quality.
+
+If the part is mounted manually, please ensure the temperature could not exceed 260 ℃ for 10 seconds.
+
+
+
+
+MEMSIC MMC5603NJ Rev. B                          Page 16 of 18                      Formal release: 1/17/2022
+PACKAGE DRAWING (WLP package)
+
+
+
+
+                                X               Z                    0.40
+                                                                                    UNIT: mm
+                    1       2                                    2          1
+                                                Y
+
+
+
+
+                                    0.82±0.03
+              A                                                  SCL    VSA     A
+
+
+
+
+                                                        0.40
+              B                                                  SDA    VDD     B
+
+
+                   0.82±0.03                                            0.22±0.03
+
+                  (TOP VIEW)                                   (BOTTOM VIEW)
+
+
+                                      0.40±0.03
+
+
+
+
+                          0.14±0.03
+
+                  (SIDE VIEW)
+
+
+
+
+MEMSIC MMC5603NJ Rev. B                         Page 17 of 18                       Formal release: 1/17/2022
+RECOMMENDED LAND PATTERN DESIGN
+
+                                         UNIT: mm
+
+
+  0.23
+
+
+
+
+                 0.40             0.40
+
+
+
+
+RELATIONSHIP BETWEEN THE MAGNETIC FIELD AND OUTPUT CODE
+The measurement data increases as the magnetic flux density increases in the arrow directions.
+
+
+
+
+                     Z
+                                    Y
+
+
+
+
+                                             X
+
+
+
+
+MEMSIC MMC5603NJ Rev. B                          Page 18 of 18                      Formal release: 1/17/2022
+
