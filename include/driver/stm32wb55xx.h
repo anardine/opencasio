@@ -299,17 +299,20 @@ typedef struct
 
 //overall macro definitions of set/unset registers
 
-// clock MSI macros
+// RCC
+// RM0434 section 6.4.3: SW/SWS are two-bit fields; HSI16 is encoding 01.
+
+// RCC MSI macros
 #define MSI_RDY()                    (RCC->cr & (1 << 1))
 #define LSI1_RDY()                   (RCC->csr & (1 << 1))
 #define HSI_RDY()                    (RCC->cr & (1 << 10))
-#define HSI_CLK_SELECTED()           (RCC->cfgr & (1 << 3))
+#define HSI_CLK_SELECTED()           ((RCC->cfgr & (3 << 2)) == (1 << 2))
 #define SET_MSI_16                   (RCC->cr |= (1 << 7))
 #define SET_MSI_ON                   (RCC->cr |= (1 << 0))
 #define SET_MSI_OFF                  (RCC->cr &= ~(1 << 0))
 #define SET_HSI_ON                   (RCC->cr |= (1 << 8))
 #define SET_LSI1_ON                  (RCC->csr |= (1 << 0))
-#define SET_CLK_TO_HSI               (RCC->cfgr |= (1 << 0))
+#define SET_CLK_TO_HSI               (RCC->cfgr = (RCC->cfgr & ~(3 << 0)) | (1 << 0))
 
  //Define GPIO operations
  #define GPIO_MODE_INPUT            0U
