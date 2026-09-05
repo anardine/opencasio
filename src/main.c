@@ -6,6 +6,7 @@
 #include "../include/etc/error.h"
 #include "driver/rcc.h"
 #include "driver/gpio.h"
+#include "auxiliary/gpio-pins-setup.h"
 #include "driver/i2c.h"
 #include "auxiliary/mmc5603nj.h"
 #include "auxiliary/rv-3129-c3.h"
@@ -22,17 +23,14 @@ int main() {
       if (!initRCC()) return RCC_CFG_ERR;             //if clock is unable to be set to HSI, return RCC_CFG_ERR and terminate
       
 
-      // Init peripherals section
+      uint8_t status = Board_GPIO_Init();
+      if (status != CORE_OK) return status;
 
-      //GPIOs
-
-      //I2C
-
-
-
-      //main loop
+      // GPIO bring-up checkpoint: inspect IDR/ODR through ST-Link.
+      // No wake source is configured yet; do not burn power in a busy spin.
       while (1)
       {
+            __asm volatile ("wfi");
 
       }
 

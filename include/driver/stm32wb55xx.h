@@ -419,7 +419,4 @@ typedef struct
 #define I2C_RX_INT_EN                   1U
 
 
-
-
-
 #endif

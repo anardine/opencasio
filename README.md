@@ -58,6 +58,8 @@ The code runs using `platformio` and the `ST-Link` interface for uploading and d
 
 As of now, the code is still under development. PRs are welcomed.
 
+Build with `pio run`; run host register-level checks with `python3 test/gpio/run.py` (Rosetta is required on Apple Silicon). These checks do not replace electrical verification. Follow the Phase 1 hardware gate in `DEVELOPMENT_PLAN.md` before starting I2C bring-up.
+
 
 ### How to Contribute
 

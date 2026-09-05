@@ -1,7 +1,7 @@
 # OPENCASIO — Hardware Reference
 
 Ground truth for firmware development. Sources (all extracted under `docs/`):
-- Netlists: `docs/Netlist_Schematic.tel` and `docs/Netlist_PCB.tel` (verified identical except test-pad refdes naming: `GND1/DIO1/CLK1/RST1/VDD1` on schematic vs `GND/DIO/CLK/RST/VDD` on PCB).
+- Schematic netlist: `docs/schematic.tel` (component packages and board connectivity).
 - Datasheet DS11929 Rev 18 (`docs/ds_stm32wb55re.txt`) — pinout table 16.
 - Reference manual RM0434 Rev 16 (`docs/rm0434.txt`) — see `docs/INDEX.md` for chapter offsets.
 - RV-3129-C3 datasheet + application manual (`docs/rv3129_ds.txt`, `docs/rv3129_appman.txt`).
