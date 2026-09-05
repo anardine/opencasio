@@ -22,8 +22,8 @@ enum RCC_PERIPHERAL
       LCD_PER,
 };
 
-//setup the clock to the default frequency of 16MHz
-uint8_t initRCC();
+// Select HSI16 SYSCLK and start LSI1. Returns 1 on success, 0 on timeout.
+uint8_t initRCC(void);
 
 //enable the clock on the designated peripheral
 void enableRCC(enum RCC_PERIPHERAL rcc_per);

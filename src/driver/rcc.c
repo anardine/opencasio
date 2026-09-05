@@ -4,38 +4,33 @@
 
 #include "driver/rcc.h"
 
+// Startup iteration guard, not a calibrated timebase (SYSCLK is changing).
+#define RCC_STARTUP_POLL_LIMIT 100000U
 
-uint8_t initRCC() {
-    //set internal clock source to 16MHz
-    //when the MCU is powered on, the initial clock source selected is MSI on 4MHz. We need to check the RCC_CR register to understand if MSI is ready to then set the MSI to 16MHz. When it wakes from standby mode, the MCU instead runs on HSI instead (which is by default 16MHz)
-    uint32_t rccState = RCC->cr;
 
-    switch (rccState) {
-
-        case 0x61:                                    //0x61 (reset default)
-        while (!MSI_RDY()) {}                  //wait for MSI flag to report ready
-        return initRCC();
-
-        case 0x63:                                    //0x63 MSI ready (4MHz Default)
-            SET_HSI_ON;                               //turn HSI on
-            SET_CLK_TO_HSI;                           //set clock to HSI
-            SET_LSI1_ON;                              // enables the LSI clock for the LCD module
-            SET_MSI_OFF;                              //once HSI is on, turn MSI off
-        if (HSI_RDY()
-            && HSI_CLK_SELECTED()
-            && LSI1_RDY()) {
-            return 1;                               // return true if HSI is now active and LSI is ready for LCD
-        }
-            return 0;
-
-        case 0x160:                                 //Reset value: 0x0000 0160 (after wake-up from Standby reset)
-            return 2;                               // return 2 if clock is HSI-based
-
-        default:
-            RCC->cr = 0x160;                        //sets clock back to HSI
-        return 3;                                   //returns 3 if clock had a different configuration than the default
+uint8_t initRCC(void) {
+    // Wait for HSI16, switch SYSCLK, then wait for SWS=01 before retiring MSI.
+    SET_HSI_ON;
+    uint32_t remaining = RCC_STARTUP_POLL_LIMIT;
+    while (!HSI_RDY()) {
+        if (--remaining == 0U) return 0;
     }
 
+    SET_CLK_TO_HSI;
+    remaining = RCC_STARTUP_POLL_LIMIT;
+    while (!HSI_CLK_SELECTED()) {
+        if (--remaining == 0U) return 0;
+    }
+
+    // Retain the existing LSI1 startup for the later LCD phase (6.4.31).
+    SET_LSI1_ON;
+    remaining = RCC_STARTUP_POLL_LIMIT;
+    while (!LSI1_RDY()) {
+        if (--remaining == 0U) return 0;
+    }
+
+    SET_MSI_OFF;
+    return 1;
 }
 
 
