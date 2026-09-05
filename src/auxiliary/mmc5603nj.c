@@ -3,167 +3,123 @@
 //
 
 #include "auxiliary/mmc5603nj.h"
+#include <math.h>
 
-uint8_t readFromMag(I2C_Handle_t *pToI2CHandle, uint8_t memAddr, uint8_t *data, uint8_t length) {
+// MMC5603NJ uses repeated-START I2C (unlike the RV-3129-C3 RTC).
+// But our I2C driver sends AUTOEND (STOP) on every transaction, so
+// readFromMag is the same two-transaction pattern as readFromRTC:
+// write register address (STOP), then read N bytes (STOP).
 
-      //Any serial communication with the MMC5603NJ starts with a “START condition” and terminates with the “STOP condition”
-      I2C_Transmit(pToI2CHandle, data, memAddr, 0, MAG_ADDR); // transmits the memAddr first,
-      I2C_Receive(pToI2CHandle, data, length, MAG_ADDR); // read the details from the memAddr sent beforehand
-
-      return 0;
-}
-uint8_t writeToMag(I2C_Handle_t *pToI2CHandle, uint8_t memAddr, uint8_t *data, uint8_t length) {
-
-      I2C_Transmit(pToI2CHandle, data, memAddr, length, MAG_ADDR); // transmit the data
-
-      return 0;
+uint8_t readFromMag(I2C_Handle_t *pToI2CHandle, uint8_t reg, uint8_t *buf, uint8_t len) {
+    uint8_t status = I2C_Transmit(pToI2CHandle, 0, reg, 0, MAG_ADDR);
+    if (status != CORE_OK) return status;
+    return I2C_Receive(pToI2CHandle, buf, len, MAG_ADDR);
 }
 
+uint8_t writeToMag(I2C_Handle_t *pToI2CHandle, uint8_t reg, uint8_t *buf, uint8_t len) {
+    return I2C_Transmit(pToI2CHandle, buf, reg, len, MAG_ADDR);
+}
 
-//Init the mag sensor. The sensor is initialized with the default mode of just doing a SET/RESET and sampling by request.
-//For a continuous sampling rate of 25Hz with a SET/RESET every 25Hz, set MAG_CONTINUOUS_MODE on stm32wb55xx.h.
+// Initialize: verify product ID, enable Auto_SR, perform SET/RESET.
+// On-demand mode by default (MAG_CONTINUOUS_MODE = 0 in device_config.h).
+// For continuous mode, define MAG_CONTINUOUS_MODE=1 in device_config.h.
 uint8_t magInit(I2C_Handle_t *pToI2CHandle) {
+    // Verify device presence via product ID (§Product ID 1, 0x39 = 0x10).
+    uint8_t pid;
+    uint8_t status = readFromMag(pToI2CHandle, MAG_REG_PRODUCT_ID, &pid, 1);
+    if (status != CORE_OK) return status;
+    if (pid != MAG_PRODUCT_ID) return MAG_INIT_CFG_ERR;
+
 #if MAG_CONTINUOUS_MODE
-      // Enable automatic degaussing with SET/RESET.
-      uint8_t controlReg0 = 0;
-      controlReg0 |= (1 << 5); //Automatic SET/RESET
-      controlReg0 |= (1 << 7); //This bit should be set before continuous-mode measurements are started.
+    // Enable automatic set/reset and set ODR for continuous mode.
+    uint8_t ctrl0 = MAG_CTRL0_AUTO_SR | MAG_CTRL0_CMM_FREQ_EN;
+    status = writeToMag(pToI2CHandle, MAG_REG_CTRL0, &ctrl0, 1);
+    if (status != CORE_OK) return status;
 
-      if (writeToMag(pToI2CHandle, 0x1B, &controlReg0, 1) != 0) {
-            return 1;  // I2C write error
-      }
+    uint8_t odr = 25;  // 25 Hz with BW=00 (75 Hz max for BW=00 + Auto_SR)
+    status = writeToMag(pToI2CHandle, MAG_REG_ODR, &odr, 1);
+    if (status != CORE_OK) return status;
 
-      // set ODR
-      uint8_t measurementFreq = 25; //25Hz if BW is 00
-      if (writeToMag(pToI2CHandle, 0x1A, &measurementFreq, 1) != 0) {
-            return 1;  // I2C write error
-      }
-
-      // set the mag to continuous mode. 0x1D is the addr of controlReg2
-      uint8_t controlReg2 = 0;
-      controlReg2 |= (1 << 0); //automatic SET/RESET every 25 measures
-      controlReg2 |= (1 << 4); //The device will enter continuous mode
-      if (writeToMag(pToI2CHandle, 0x1D, &controlReg2, 1) != 0) {
-            return 1;  // I2C write error
-      }
+    uint8_t ctrl2 = MAG_CTRL2_CMM_EN;
+    status = writeToMag(pToI2CHandle, MAG_REG_CTRL2, &ctrl2, 1);
+    if (status != CORE_OK) return status;
 #else
+    // On-demand mode: enable Auto_SR for measurement quality.
+    uint8_t ctrl0 = MAG_CTRL0_AUTO_SR;
+    status = writeToMag(pToI2CHandle, MAG_REG_CTRL0, &ctrl0, 1);
+    if (status != CORE_OK) return status;
 
-      magCalibrate(pToI2CHandle);
-
+    // Perform initial SET/RESET to clear residual magnetization.
+    status = magCalibrate(pToI2CHandle);
+    if (status != CORE_OK) return status;
 #endif
-      return 0;  // Success
+    return CORE_OK;
 }
 
-//Uses the Mag SET/RESET operation to remove any residual magnetic field that could have resulted in mag decalibration.
+// SET then RESET to clear residual magnetization (§SET/RESET operation).
+// Each operation is self-clearing after 375 ns; no polling needed.
 uint8_t magCalibrate(I2C_Handle_t *pToI2CHandle) {
-      uint8_t controlReg0 = 0;
+    uint8_t cmd = MAG_CTRL0_DO_SET;
+    uint8_t status = writeToMag(pToI2CHandle, MAG_REG_CTRL0, &cmd, 1);
+    if (status != CORE_OK) return status;
 
-      //SET command
-      controlReg0 |= (1 << 3); //SET
-      if (writeToMag(pToI2CHandle, 0x1B, &controlReg0, 1) != 0) {
-            return 1;  // SET calibration error
-      }
-      controlReg0 = 0;
-      //RESET command
-      controlReg0 |= (1 << 4); //RESET
-      if (writeToMag(pToI2CHandle, 0x1B, &controlReg0, 1) != 0) {
-            return 1;  // RESET calibration error
-      }
-      return 0;
+    cmd = MAG_CTRL0_DO_RESET;
+    return writeToMag(pToI2CHandle, MAG_REG_CTRL0, &cmd, 1);
 }
 
+// Trigger one magnetic measurement and poll until data is ready.
+// Status1.MEAS_M_DONE (bit 1) = 1 means X/Y/Z data available.
+// Timeout: 100k iterations at 16 MHz ≈ 12 ms — well above the 6.6 ms
+// measurement time for BW=00 (the default, §Internal Control 1).
+uint8_t magGetData(I2C_Handle_t *pToI2CHandle, mag_data_t *data) {
+    // Read current CTRL0, set TAKE_MEAS_M bit (preserve Auto_SR).
+    uint8_t ctrl0;
+    uint8_t status = readFromMag(pToI2CHandle, MAG_REG_CTRL0, &ctrl0, 1);
+    if (status != CORE_OK) return status;
+    ctrl0 |= MAG_CTRL0_TAKE_MEAS_M;
+    status = writeToMag(pToI2CHandle, MAG_REG_CTRL0, &ctrl0, 1);
+    if (status != CORE_OK) return status;
 
-// uint8_t magGetStatus(I2C_Handle_t *pToI2CHandle) {
-//       return 0;
-// }
+    // Poll Status1 for Meas_M_Done (bit 1).
+    uint8_t status1 = 0;
+    uint32_t timeout = 100000;
+    while (!(status1 & MAG_STATUS_MEAS_DONE)) {
+        status = readFromMag(pToI2CHandle, MAG_REG_STATUS1, &status1, 1);
+        if (status != CORE_OK) return status;
+        if (--timeout == 0U) return I2C_BUS_ERR;
+    }
 
-//Gets the raw data from the sensor
-uint8_t magGetData(I2C_Handle_t *pToI2CHandle, uint8_t *magRawDataArray) {
+    // Burst read 9 bytes from XOUT0 (0x00) through ZOUT2 (0x08).
+    uint8_t raw[9];
+    status = readFromMag(pToI2CHandle, MAG_REG_XOUT0, raw, 9);
+    if (status != CORE_OK) return status;
 
-      uint8_t controlReg0;
-      uint8_t temp;
+    // Assemble 20-bit values (§Xout0/Xout1/Xout2).
+    // Xout[19:12] = raw[0], Xout[11:4] = raw[1], Xout[3:0] = raw[6] >> 4.
+    int32_t xRaw = ((int32_t)raw[0] << 12) | ((int32_t)raw[1] << 4) | ((int32_t)raw[6] >> 4);
+    int32_t yRaw = ((int32_t)raw[2] << 12) | ((int32_t)raw[3] << 4) | ((int32_t)raw[7] >> 4);
+    int32_t zRaw = ((int32_t)raw[4] << 12) | ((int32_t)raw[5] << 4) | ((int32_t)raw[8] >> 4);
 
-      readFromMag(pToI2CHandle, 0x1B, &controlReg0, 1);
-      controlReg0 |= (1 << 0) | (1 << 5);
-      writeToMag(pToI2CHandle, 0x1B, &controlReg0, 1);
+    // Convert from offset binary to signed, then to milli-Gauss.
+    data->x_mG = (float)(xRaw - MAG_NULL_FIELD) * MAG_LSB_MGAUSS;
+    data->y_mG = (float)(yRaw - MAG_NULL_FIELD) * MAG_LSB_MGAUSS;
+    data->z_mG = (float)(zRaw - MAG_NULL_FIELD) * MAG_LSB_MGAUSS;
 
-       uint8_t statusCheck = 0;
+    // Temperature: 8-bit unsigned, 0 = -75°C, 0.8°C/LSB (§Temperature Out).
+    uint8_t tout;
+    status = readFromMag(pToI2CHandle, MAG_REG_TOUT, &tout, 1);
+    if (status != CORE_OK) return status;
+    data->temp_C = (int8_t)((int16_t)tout * 4 / 5 - 75);
 
-      while (!((statusCheck >> 1) & 0x01)) {
-            readFromMag(pToI2CHandle, 0x18, &statusCheck, 1);
-      }
-
-      readFromMag(pToI2CHandle, 0x00, magRawDataArray, 10); // stores the data at the raw data array for posterior use.
-
-      return 0;
+    return CORE_OK;
 }
 
-//Receives the raw readings from the mag and returns the calculated heading in degree
-uint16_t magTransformToHeading(uint8_t *magRawDataArray) {
-      
-      // MMC5603NJ raw data format (from registers 0x00-0x08):
-      // Bytes 0-1: X axis (MSB, LSB)
-      // Bytes 2-3: Y axis (MSB, LSB)
-      // Bytes 4-5: Z axis (MSB, LSB)
-      // Byte 6: X lower 4 bits (bits 4-7, bits 0-3 unused)
-      // Byte 7: Y lower 4 bits (bits 4-7, bits 0-3 unused)
-      // Byte 8: Z lower 4 bits (bits 4-7, bits 0-3 unused)
-      
-      // Extract raw 20-bit X, Y, Z values
-      // X: 8-bit MSB (byte 0) + 8-bit LSB (byte 1) + 4-bit lower (byte 6 bits 4-7, shifted right by 4)
-      int32_t xRaw = ((int32_t)magRawDataArray[0] << 12) | ((int32_t)magRawDataArray[1] << 4) | (((int32_t)magRawDataArray[6] >> 4) & 0x0F);
-      
-      // Y: 8-bit MSB (byte 2) + 8-bit LSB (byte 3) + 4-bit lower (byte 7 bits 4-7, shifted right by 4)
-      int32_t yRaw = ((int32_t)magRawDataArray[2] << 12) | ((int32_t)magRawDataArray[3] << 4) | (((int32_t)magRawDataArray[7] >> 4) & 0x0F);
-      
-      // Z: 8-bit MSB (byte 4) + 8-bit LSB (byte 5) + 4-bit lower (byte 8 bits 4-7, shifted right by 4)
-      int32_t zRaw = ((int32_t)magRawDataArray[4] << 12) | ((int32_t)magRawDataArray[5] << 4) | (((int32_t)magRawDataArray[8] >> 4) & 0x0F);
-      
-      // Convert to signed values (offset binary encoding, subtract 2^19 to center at 0)
-      int32_t xSigned = xRaw - 524288;
-      int32_t ySigned = yRaw - 524288;
-      
-      // Calculate heading angle using arctangent
-      // Positive X points in the direction we want to measure (user facing direction)
-      // Positive Y points West (90° counter-clockwise from X)
-      // We want: 0° = +X direction, 90° = +Y rotated (East), 180° = -X, 270° = -Y
-      
-      double headingRad = atan2((double)xSigned, (double)ySigned);
-      double headingDeg = (headingRad * 180.0) / M_PI;
-      
-      // Normalize to 0-360 degrees
-      if (headingDeg < 0) {
-            headingDeg += 360.0;
-      }
-      
-      // Return heading value with 0.1 degree resolution (0-3600 representing 0-360.0 degrees)
-      uint16_t headingValue = (uint16_t)(headingDeg * 10.0);
-      
-      return headingValue;
+// Heading from X and Y components. atan2(y, x) gives standard math angle;
+// compass heading = 90 - math_angle, normalized to 0-360.
+// Returns 0-3599 (0.1° resolution).
+uint16_t magTransformToHeading(const mag_data_t *data) {
+    float headingDeg = 90.0f - (float)(atan2((double)data->y_mG, (double)data->x_mG) * 180.0 / M_PI);
+    if (headingDeg < 0.0f) headingDeg += 360.0f;
+    if (headingDeg >= 360.0f) headingDeg -= 360.0f;
+    return (uint16_t)(headingDeg * 10.0f);
 }
-
-
-uint8_t displayHeadings(I2C_Handle_t *pToI2CHandle, uint16_t headingValue) {
-
-      //TODO: Implement the display function of the heading
-
-
-      return 0;
-}
-
-uint8_t magReset(I2C_Handle_t *pToI2CHandle) {
-
-      // Reset the device.
-      uint8_t controlReg1 = 0;
-      controlReg1 |= (1 << 7);
-      if (writeToMag(pToI2CHandle, 0x1C, &controlReg1, 1) != 0) {
-            return 1;  // Communication error
-      }
-
-      return 0;
-}
-
-
-
-
-

@@ -68,10 +68,10 @@ Hardware gate:
 - [x] Integrate RTC read into `src/main.c` initialization sequence.
 
 ### Phase 4: Sensor Integration & Power Gating
-- [ ] Implement rail control functions (`TEMP_EN`, `MAG_EN`) using GPIO drivers.
-- [ ] Implement BME280 init and forced-mode measurement sequence in a new driver file.
-- [ ] Implement MMC5603NJ init and measurement sequence in `src/auxiliary/mmc5603nj.c`.
-- [ ] Create heading calculation helper.
+- [x] Implement rail control functions (`TEMP_EN`, `MAG_EN`) using GPIO drivers.
+- [x] Implement BME280 init and forced-mode measurement sequence in a new driver file.
+- [x] Implement MMC5603NJ init and measurement sequence in `src/auxiliary/mmc5603nj.c`.
+- [x] Create heading calculation helper.
 
 ### Phase 5: LCD Driver Completion
 - [ ] Implement `lcdDisable`, `lcdGetStatus`, `lcdDisplayLow`, `lcdDisplayHigh` in `src/driver/lcd.c`.

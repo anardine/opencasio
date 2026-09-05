@@ -57,6 +57,30 @@ void Buzzer_GPIO_Init(void) {
     GPIO_Init(&pin);
 }
 
+// PB0 = TEMP_EN, PB1 = MAG_EN. Both start LOW (Board_GPIO_Init).
+static const GPIO_Handle_t tempEnPin = {
+    .pGPIOx = GPIOB, .GPIO_PinConfig = { .GPIO_PinNumber = 0 },
+};
+static const GPIO_Handle_t magEnPin = {
+    .pGPIOx = GPIOB, .GPIO_PinConfig = { .GPIO_PinNumber = 1 },
+};
+
+void railOn(void) {
+    GPIO_WriteToOutputPin(&tempEnPin, 1);
+    GPIO_WriteToOutputPin(&magEnPin, 1);
+}
+
+void railOff(void) {
+    GPIO_WriteToOutputPin(&tempEnPin, 0);
+    GPIO_WriteToOutputPin(&magEnPin, 0);
+}
+
+// U11/U12 rise time unknown (REFERENCE.md §7.3). ~1 ms at 16 MHz is
+// conservative; tighten after measuring on the board.
+void railSettleDelay(void) {
+    for (volatile uint32_t i = 0; i < 4000; i++) __asm volatile ("nop");
+}
+
 uint8_t Btn_GPIO_Init(void) {
     // Schematic R12/R13/R14 provide external pulldowns. Leave internal
     // pulls off; GPIO_ReadFromInputPin returns 1 while a button is pressed.
