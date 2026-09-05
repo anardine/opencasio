@@ -112,7 +112,11 @@ debug/STM32WB55_CM4.svd  SVD for debugger register views
   retains LSI1 startup, and disables MSI only after successful bounded waits.
 - There is no host test harness: verification is `pio run` plus on-target
   debugger inspection. Use DEVELOPMENT_PLAN.md's hardware gate for behavior.
-- I2C, external RTC/sensors, LCD rendering and buzzer control are not integrated.
+- Phase 2 I2C1 is implemented: 100 kHz Standard mode, TIMINGR=0x30420F13
+  (RM0434 Table 209 at 16 MHz I2CCLK on PCLK default), AUTOEND STOP on every
+  transaction, explicit I2C_NACK_ERR/I2C_BUS_ERR outcomes, bounded polling.
+  main() runs a rail-gated bus scan and exposes results in i2cScanAck[].
+  External RTC/sensors, LCD rendering and buzzer control are not integrated.
   The dormant pin helpers no longer dereference null handles. LCD peripheral
   completion and `GPIO_ToggleOutputPin` remain later-phase work.
 

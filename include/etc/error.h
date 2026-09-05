@@ -10,6 +10,8 @@ enum CORE_ERROR_CODE {
       RCC_CFG_ERR             = 1, // threw under the condition of failure in enabling the clock of the STM
       GPIO_CFG_ERR            = 2, // threw under the condition of a GPIO init failure
       I2C_CFG_ERR             = 3, // threw under the condition of a I2C init failure
+      I2C_NACK_ERR            = 4, // target did not ACK its address byte (bus scan: device absent)
+      I2C_BUS_ERR             = 5, // BERR/ARLO or timeout while polling I2C status flags
 };
 
 enum PER_ERROR_CODE {
