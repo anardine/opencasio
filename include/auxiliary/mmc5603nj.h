@@ -11,7 +11,7 @@
 #include "driver/i2c.h"
 
 
-uint8_t static const MAG_ADDR =  0x60; //define the i2c addr of the MMC5603NJ
+#define MAG_ADDR  0x60U  // raw I2C write byte (7-bit 0x30 << 1)
 typedef uint8_t magDataArray_t[10]; // array of uint8_t data to hold the data from Mag. 9 for mag readings, 1 for temperature if enabled
 
 uint8_t readFromMag(I2C_Handle_t *pToI2CHandle, uint8_t memAddr, uint8_t *data, uint8_t length);

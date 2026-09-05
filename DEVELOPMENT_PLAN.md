@@ -63,9 +63,9 @@ Hardware gate:
 - Measure U11/U12 rail rise time to replace the ~1 ms `railSettleDelay()` guess, and confirm EN polarity is really active-HIGH (REFERENCE.md §7.3).
 
 ### Phase 3: RTC Integration (RV-3129-C3)
-- [ ] Implement low-level I2C read/write functions in `src/auxiliary/rv-3129-c3.c`.
-- [ ] Add functions for setting/getting time/date (BCD conversions).
-- [ ] Integrate RTC read into `src/main.c` initialization sequence.
+- [x] Implement low-level I2C read/write functions in `src/auxiliary/rv-3129-c3.c`.
+- [x] Add functions for setting/getting time/date (BCD conversions).
+- [x] Integrate RTC read into `src/main.c` initialization sequence.
 
 ### Phase 4: Sensor Integration & Power Gating
 - [ ] Implement rail control functions (`TEMP_EN`, `MAG_EN`) using GPIO drivers.

@@ -26,6 +26,12 @@ volatile uint8_t i2cScanAck[128];
 // Raw addresses probed: RTC always-on; MAG/BME280 behind gated rails.
 volatile uint8_t i2cScanRtc, i2cScanMag, i2cScanBme76, i2cScanBme77;
 
+// Phase 3: RTC time/date read once at init for debugger inspection.
+// Binary values (BCD conversion done in getTime/getDate).
+rtc_time_t rtcTime;
+rtc_date_t rtcDate;
+volatile uint8_t rtcReadStatus;  // 0 = OK, non-zero = I2C error code
+
 // Phase 2 bring-up aid only: replace with the event-driven superloop in
 // Phase 7. Returning CORE_OK lets main continue to WFI even if a device is
 // missing; the scan bitmaps above carry the outcome for the debugger.
@@ -83,10 +89,16 @@ int main() {
       status = i2cScanComplete();
       if (status != CORE_OK) return status;
 
-      // Bring-up checkpoint: inspect i2cScanAck[] / the four result bytes
-      // through ST-Link. EXTI wake sources (3 buttons rising, RTC_INT
-      // falling) are armed; WFI returns on each event until Phase 7 adds
-      // the event-driven superloop.
+      // Phase 3: read RTC time and date. The RTC is always-powered, so this
+      // works regardless of sensor rail state. Results in rtcTime/rtcDate
+      // (binary) and rtcReadStatus for debugger inspection at WFI.
+      rtcReadStatus = getTime(&pToI2C, &rtcTime);
+      if (rtcReadStatus == CORE_OK)
+            rtcReadStatus = getDate(&pToI2C, &rtcDate);
+
+      // Bring-up checkpoint: inspect i2cScanAck[] / rtcTime / rtcDate through
+      // ST-Link. EXTI wake sources (3 buttons rising, RTC_INT falling) are
+      // armed; WFI returns on each event until Phase 7 adds the superloop.
       while (1)
       {
             __asm volatile ("wfi");

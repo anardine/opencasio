@@ -2,140 +2,145 @@
 // Created by Alessandro Nardinelli on 20/12/25.
 //
 
-
 #include "auxiliary/rv-3129-c3.h"
 
-uint8_t readFromRTC(I2C_Handle_t *pToI2CHandle, uint8_t memAddr, uint8_t *data, uint8_t length) {
-
-      //Any serial communication with the RV-3129-C3 starts with a “START condition” and terminates with the “STOP condition” No restart allowed on comms with the RV-3129. The RV-3129-C3 does not allow a repeated START. Therefore a STOP has to be released before the next START
-      I2C_Transmit(pToI2CHandle, data, memAddr, 0, RTC_ADDR); // transmits the memAddr first,
-      I2C_Receive(pToI2CHandle, data, length, RTC_ADDR); // read the details from the memAddr sent beforehand
-
-      return 0;
+// BCD ↔ binary (§3.3: clock registers are BCD-coded).
+// bcd_to_bin: high nibble × 10 + low nibble.
+// bin_to_bcd: (bin/10 << 4) | (bin%10).
+uint8_t bcd_to_bin(uint8_t bcd) {
+    return (bcd >> 4) * 10U + (bcd & 0x0FU);
 }
 
-
-uint8_t writeToRTC(I2C_Handle_t *pToI2CHandle, uint8_t memAddr, uint8_t *data, uint8_t length) {
-
-      I2C_Transmit(pToI2CHandle, data, memAddr, length, RTC_ADDR);
-
-      return 0;
+uint8_t bin_to_bcd(uint8_t bin) {
+    return ((bin / 10U) << 4) | (bin % 10U);
 }
 
-uint8_t getTime(I2C_Handle_t *pToI2CHandle, uint8_t *timePointer) {
-
-      readFromRTC(pToI2CHandle,0x08, timePointer,1); //seconds
-      readFromRTC(pToI2CHandle,0x09, (timePointer+1),1); //minutes
-      readFromRTC(pToI2CHandle,0x0A, (timePointer+2),1); //hours
-
-      return 0;
+// RV-3129-C3 §6.8: write register address with STOP, then read with STOP.
+// Repeated START is forbidden, so this is two separate I2C transactions.
+uint8_t readFromRTC(I2C_Handle_t *pToI2CHandle, uint8_t reg, uint8_t *buf, uint8_t len) {
+    uint8_t status = I2C_Transmit(pToI2CHandle, 0, reg, 0, RTC_ADDR);
+    if (status != CORE_OK) return status;
+    return I2C_Receive(pToI2CHandle, buf, len, RTC_ADDR);
 }
 
-uint8_t setTime(I2C_Handle_t *pToI2CHandle, uint8_t *timePointer) {
-
-      writeToRTC(pToI2CHandle,0x08, timePointer,1); //seconds
-      writeToRTC(pToI2CHandle,0x09, (timePointer+1),1); //minutes
-      writeToRTC(pToI2CHandle,0x0A, (timePointer+2),1); //hours
-
-      return 0;
+// Single transaction: START + addr(W) + reg + data[0..len-1] + STOP.
+uint8_t writeToRTC(I2C_Handle_t *pToI2CHandle, uint8_t reg, uint8_t *buf, uint8_t len) {
+    return I2C_Transmit(pToI2CHandle, buf, reg, len, RTC_ADDR);
 }
 
-uint8_t getDate(I2C_Handle_t *pToI2CHandle, uint8_t *datePointer) {
-
-      readFromRTC(pToI2CHandle,0x0B, datePointer,1); //days
-      readFromRTC(pToI2CHandle,0x0C, (datePointer+1),1); //weekday
-      readFromRTC(pToI2CHandle,0x0D, (datePointer+2),1); //Months
-      readFromRTC(pToI2CHandle,0x0E, (datePointer+3),1); //Years
-
-      return 0;
+// Batch read 3 bytes from 0x08 (seconds, minutes, hours) using auto-increment.
+// Hours masked to 6 bits (24-hour mode; bit 6 = 12-24 stays 0 at reset).
+uint8_t getTime(I2C_Handle_t *pToI2CHandle, rtc_time_t *t) {
+    uint8_t bcd[3];
+    uint8_t status = readFromRTC(pToI2CHandle, RTC_REG_SECONDS, bcd, 3);
+    if (status != CORE_OK) return status;
+    t->seconds = bcd_to_bin(bcd[0] & 0x7FU);
+    t->minutes = bcd_to_bin(bcd[1] & 0x7FU);
+    t->hours   = bcd_to_bin(bcd[2] & 0x3FU);
+    return CORE_OK;
 }
 
-uint8_t setDateC(I2C_Handle_t *pToI2CHandle, uint8_t *datePointer) {
-
-      writeToRTC(pToI2CHandle,0x0B, datePointer,1); //days
-      writeToRTC(pToI2CHandle,0x0C, (datePointer+1),1); //weekday
-      writeToRTC(pToI2CHandle,0x0D, (datePointer+2),1); //Months
-      writeToRTC(pToI2CHandle,0x0E, (datePointer+3),1); //Years
-
-      return 0;
+// Batch write 3 bytes to 0x08 (seconds, minutes, hours).
+uint8_t setTime(I2C_Handle_t *pToI2CHandle, const rtc_time_t *t) {
+    uint8_t bcd[3];
+    bcd[0] = bin_to_bcd(t->seconds);
+    bcd[1] = bin_to_bcd(t->minutes);
+    bcd[2] = bin_to_bcd(t->hours);
+    return writeToRTC(pToI2CHandle, RTC_REG_SECONDS, bcd, 3);
 }
 
+// Batch read 4 bytes from 0x0B (days, weekdays, months, years).
+// Weekdays are BCD 1-7 (identical to binary); mask to 3 bits.
+uint8_t getDate(I2C_Handle_t *pToI2CHandle, rtc_date_t *d) {
+    uint8_t bcd[4];
+    uint8_t status = readFromRTC(pToI2CHandle, RTC_REG_DAYS, bcd, 4);
+    if (status != CORE_OK) return status;
+    d->day      = bcd_to_bin(bcd[0] & 0x3FU);
+    d->weekday  = bcd[1] & 0x07U;
+    d->month    = bcd_to_bin(bcd[2] & 0x1FU);
+    d->year     = bcd_to_bin(bcd[3] & 0x7FU);
+    return CORE_OK;
+}
+
+// Batch write 4 bytes to 0x0B (days, weekdays, months, years).
+uint8_t setDate(I2C_Handle_t *pToI2CHandle, const rtc_date_t *d) {
+    uint8_t bcd[4];
+    bcd[0] = bin_to_bcd(d->day);
+    bcd[1] = d->weekday;  // BCD 1-7 == binary 1-7
+    bcd[2] = bin_to_bcd(d->month);
+    bcd[3] = bin_to_bcd(d->year);
+    return writeToRTC(pToI2CHandle, RTC_REG_DAYS, bcd, 4);
+}
+
+// Enable AIE (bit 0) in Control_INT and read back to verify.
 uint8_t alarmInit(I2C_Handle_t *pToI2CHandle) {
-
-      uint8_t flag = ENABLE;
-      uint8_t alarmSet;
-      //Enable the Alarm Interrupt in Control_INT.
-      writeToRTC(pToI2CHandle,0x01, &flag,1); //write to Control_INT 1 to AIE bit
-      readFromRTC(pToI2CHandle,0x01, &alarmSet,1); //read alarm value to check if alarm is enabled
-
-      if ((alarmSet >> 0) & 0x01) {
-            return 0; //return false if alarm is initialized
-      }
-      return 1;
+    uint8_t val = RTC_INT_AIE;
+    uint8_t status = writeToRTC(pToI2CHandle, RTC_REG_CONTROL_INT, &val, 1);
+    if (status != CORE_OK) return status;
+    status = readFromRTC(pToI2CHandle, RTC_REG_CONTROL_INT, &val, 1);
+    if (status != CORE_OK) return status;
+    return (val & RTC_INT_AIE) ? CORE_OK : RTC_ALARM_CFG_ERR;
 }
 
+// Clear AF (bit 0) in Control_INT Flag. Writing 0 clears; 1 preserves other flags.
 uint8_t alarmClear(I2C_Handle_t *pToI2CHandle) {
-
-      uint8_t flag = DISABLE;
-
-      //Enable the Alarm Interrupt in Control_INT.
-      writeToRTC(pToI2CHandle,0x02, &flag,1); //write to Control_INT Flag the AF bit to clear Alarm INT
-
-      return 0;
+    uint8_t val = 0xFFU & ~RTC_FLAG_AF;
+    return writeToRTC(pToI2CHandle, RTC_REG_CONTROL_INT_FLAG, &val, 1);
 }
 
-uint8_t alarmSet(I2C_Handle_t *pToI2CHandle, uint8_t *pToAlarmSettings) {
-
-      uint8_t seconds = (pToAlarmSettings[0] | (1 << 7)); // 1 << 7 enables each of the alarm's section
-      uint8_t minutes = (pToAlarmSettings[1] | (1 << 7));
-      uint8_t hour = (pToAlarmSettings[3] | (1 << 7));
-
-      //The RV-3129-c3 have alarm setting for s, m, h, dd, mm, and yyyy. For this implementation, only s, m and h are set
-      //TODO: Implement the settings for day, month and year too.
-      writeToRTC(pToI2CHandle,0x10, &seconds,1); //seconds
-      writeToRTC(pToI2CHandle,0x11, &minutes,1); //minutes
-      writeToRTC(pToI2CHandle,0x12, &hour,1); //hour
-
-      if (!(alarmInit(pToI2CHandle))) {
-            return 0; // return 0 if the alarm was correctly set
-      }
-      return 1;
+// Write alarm registers with AE bits set, then enable AIE.
+// Only seconds/minutes/hours are used (§3.4: day/weekday/month/year alarm
+// fields exist but aren't needed for this project).
+uint8_t alarmSet(I2C_Handle_t *pToI2CHandle, const rtc_alarm_t *a) {
+    // AE bit (bit 7) = 1 enables each alarm field for comparison.
+    uint8_t bcd[3];
+    bcd[0] = bin_to_bcd(a->seconds) | 0x80U;
+    bcd[1] = bin_to_bcd(a->minutes) | 0x80U;
+    bcd[2] = bin_to_bcd(a->hours)   | 0x80U;
+    uint8_t status = writeToRTC(pToI2CHandle, RTC_REG_SEC_ALARM, bcd, 3);
+    if (status != CORE_OK) return status;
+    return alarmInit(pToI2CHandle);
 }
-// TODO implement timer functions
+
+// Enable countdown timer: 1 Hz source clock, auto-reload, TIE interrupt.
+// Read-modify-write Control_1 to preserve SROn/EERE/WE/Clk-Int from reset.
 uint8_t timerInit(I2C_Handle_t *pToI2CHandle) {
+    uint8_t ctrl1;
+    uint8_t status = readFromRTC(pToI2CHandle, RTC_REG_CONTROL_1, &ctrl1, 1);
+    if (status != CORE_OK) return status;
+    // TD1:TD0 = 10 → 1 Hz (§4.4: 00=32Hz, 01=8Hz, 10=1Hz, 11=0.5Hz)
+    ctrl1 &= ~(RTC_CTRL1_TD1 | RTC_CTRL1_TD0);
+    ctrl1 |= RTC_CTRL1_TD1;
+    ctrl1 |= RTC_CTRL1_TAR;
+    ctrl1 |= RTC_CTRL1_TE;
+    status = writeToRTC(pToI2CHandle, RTC_REG_CONTROL_1, &ctrl1, 1);
+    if (status != CORE_OK) return status;
 
-      uint8_t controlEn = (0x4 << 5) | (0x1 << 2) | (0x1 << 1); // Timer Source Clock Frequency: 1 Hz | Enables Countdown Timer Auto-Reload mode | Enables Countdown Timer
-      uint8_t interruptEn = (0x1 << 1);
+    // Enable Timer Interrupt (TIE bit 1 in Control_INT).
+    uint8_t intEn;
+    status = readFromRTC(pToI2CHandle, RTC_REG_CONTROL_INT, &intEn, 1);
+    if (status != CORE_OK) return status;
+    intEn |= RTC_INT_TIE;
+    status = writeToRTC(pToI2CHandle, RTC_REG_CONTROL_INT, &intEn, 1);
+    if (status != CORE_OK) return status;
 
-      writeToRTC(pToI2CHandle,0x00, &controlEn,1); //Enable the Timer source clock to a frequency of 1Hz (second to be the lowest unit possible for now)
-      writeToRTC(pToI2CHandle,0x01, &interruptEn,1); //Enable the Timer interrupt register for triggering an interrupt when the timer reaches 0
-
-      uint8_t timerSet;
-      readFromRTC(pToI2CHandle,0x01, &timerSet,1); //read alarm value to check if alarm is enabled
-
-      if ((timerSet >> 1) & 0x01) {
-            return 0; //return false if Timer is initialized
-      }
-      return 1;
+    // Verify TIE is set.
+    status = readFromRTC(pToI2CHandle, RTC_REG_CONTROL_INT, &intEn, 1);
+    if (status != CORE_OK) return status;
+    return (intEn & RTC_INT_TIE) ? CORE_OK : RTC_TIMER_CFG_ERR;
 }
 
+// Clear TF (bit 1) in Control_INT Flag. Writing 0 clears; 1 preserves others.
 uint8_t timerClear(I2C_Handle_t *pToI2CHandle) {
-      return 0;
+    uint8_t val = 0xFFU & ~RTC_FLAG_TF;
+    return writeToRTC(pToI2CHandle, RTC_REG_CONTROL_INT_FLAG, &val, 1);
 }
 
-uint8_t timerSet(I2C_Handle_t *pToI2CHandle, uint8_t *pToTimerSettings) {
-      return 0;
-}
-
-
-void displayTime(I2C_Handle_t *pToI2CHandle, uint8_t *timePointer) {
-
-      getTime(pToI2CHandle, timePointer);
-
-      uint8_t seconds = timePointer[0];
-      uint8_t minutes = timePointer[1];
-      uint8_t hours = timePointer[2];
-
-      //TODO: implement display logic for time
-
+// Load 16-bit countdown value. n=1..65536 valid; n=0 stops the timer (§4.4).
+// Auto-reload mode reloads n+1 on subsequent periods (first period is exact).
+uint8_t timerSet(I2C_Handle_t *pToI2CHandle, uint16_t countdown) {
+    uint8_t buf[2];
+    buf[0] = (uint8_t)(countdown & 0xFFU);
+    buf[1] = (uint8_t)((countdown >> 8) & 0xFFU);
+    return writeToRTC(pToI2CHandle, RTC_REG_TIMER_LOW, buf, 2);
 }
