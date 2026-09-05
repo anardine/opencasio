@@ -1,75 +1,102 @@
 #include "driver/gpio.h"
 #include "auxiliary/gpio-pins-setup.h"
 
-//setup the characteristics for the GPIO setup for all the LCD pins
 void LCD_GPIO_Init(void) {
-
-    GPIO_PinConfig_t defaultCfg;
-    defaultCfg.GPIO_PinMode = GPIO_MODE_AF;
-    defaultCfg.GPIO_PinAltFunMode = 11; //All LCD pins are AF11 accordingly to the DS
-
-    // Array of handles for GPIO pins
-    GPIO_Handle_t *pins[] = {
-        pToGPIOA1,  pToGPIOA2,  pToGPIOA3,  pToGPIOA4,  pToGPIOA6,  pToGPIOA7, pToGPIOA8,  pToGPIOA9,  pToGPIOA10,  pToGPIOA15, //A
-        pToGPIOB2,  pToGPIOB3,  pToGPIOB4,  pToGPIOB5,  pToGPIOB6,  pToGPIOB7, pToGPIOB10, pToGPIOB11, pToGPIOB12, //B
-        pToGPIOC0,  pToGPIOC1,  pToGPIOC2,  pToGPIOC4,  pToGPIOC5,  pToGPIOC6,  pToGPIOC10, pToGPIOC11, pToGPIOC12, //C
+    // REFERENCE.md section 4: only the 28 wired LCD/VLCD pins, not the
+    // interleaved buzzer, button and I2C pins from the old shared table.
+    static const struct {
+        GPIOx_RegTypeDef *port;
+        uint8_t pin;
+    } pins[] = {
+        {GPIOA, 1}, {GPIOA, 2}, {GPIOA, 3}, {GPIOA, 4}, {GPIOA, 6},
+        {GPIOA, 7}, {GPIOA, 8}, {GPIOA, 9}, {GPIOA, 10}, {GPIOA, 15},
+        {GPIOB, 2}, {GPIOB, 3}, {GPIOB, 4}, {GPIOB, 5}, {GPIOB, 6},
+        {GPIOB, 7}, {GPIOB, 10}, {GPIOB, 11}, {GPIOB, 12},
+        {GPIOC, 0}, {GPIOC, 1}, {GPIOC, 2}, {GPIOC, 4}, {GPIOC, 5},
+        {GPIOC, 6}, {GPIOC, 10}, {GPIOC, 11}, {GPIOC, 12},
     };
 
-    // Single loop initialization
-    for (uint8_t i = 0; i < 28; i++) {
-        pins[i]->pGPIOx = pinDefinitions[i].pGPIOx;
-        pins[i]->GPIO_PinConfig = defaultCfg;
-        pins[i]->GPIO_PinConfig.GPIO_PinNumber = pinDefinitions[i].pinNumber;
-        GPIO_Init(pins[i]);  // If you have an init function
+    for (uint8_t i = 0; i < sizeof(pins) / sizeof(pins[0]); i++) {
+        const GPIO_Handle_t pin = {
+            .pGPIOx = pins[i].port,
+            .GPIO_PinConfig = {
+                .GPIO_PinNumber = pins[i].pin,
+                .GPIO_PinMode = GPIO_MODE_AF,
+                .GPIO_PinAltFunMode = GPIO_AFL_AF11,
+            },
+        };
+        GPIO_Init(&pin);
     }
 }
 
 void I2C_GPIO_Init(void) {
-
-    GPIO_PinConfig_t defaultCfg;
-
-    GPIO_Handle_t *pins[] = {
-        pToGPIOB8, pToGPIOB9
-    };
-
-    defaultCfg.GPIO_PinMode = GPIO_MODE_AF;
-    defaultCfg.GPIO_PinAltFunMode = 4;
-
-    pins[0]->pGPIOx = GPIOB;
-    pins[0]->GPIO_PinConfig = defaultCfg;
-    pins[0]->GPIO_PinConfig.GPIO_PinNumber = 8;
-    pins[1]->pGPIOx = GPIOB;
-    pins[1]->GPIO_PinConfig = defaultCfg;
-    pins[1]->GPIO_PinConfig.GPIO_PinNumber = 9;
-
-    GPIO_Init(pins[0]);
-    GPIO_Init(pins[1]);
-
+    // DS11929 table 18: PB8/PB9 AF4. R7/R8 supply the external pulls;
+    // RM0434 section 10.4.2 requires open-drain peripheral outputs.
+    for (uint8_t number = 8; number <= 9; number++) {
+        const GPIO_Handle_t pin = {
+            .pGPIOx = GPIOB,
+            .GPIO_PinConfig = {
+                .GPIO_PinNumber = number,
+                .GPIO_PinMode = GPIO_MODE_AF,
+                .GPIO_PinOPType = GPIO_OTYPE_OD,
+                .GPIO_PinAltFunMode = GPIO_AFH_AF4,
+            },
+        };
+        GPIO_Init(&pin);
+    }
 }
 
 void Buzzer_GPIO_Init(void) {
-
-    pToGPIOA5->GPIO_PinConfig.GPIO_PinMode = GPIO_MODE_OUTPUT;
-    pToGPIOA5->GPIO_PinConfig.GPIO_PinNumber = 5;
-    pToGPIOA5->pGPIOx = GPIOA;
-
-    GPIO_Init(pToGPIOA5);
-
+    const GPIO_Handle_t pin = {
+        .pGPIOx = GPIOA,
+        .GPIO_PinConfig = {
+            .GPIO_PinNumber = 5,
+            .GPIO_PinMode = GPIO_MODE_OUTPUT,
+        },
+    };
+    GPIO_Init(&pin);
 }
 
-void Btn_GPIO_Init(void) {
+uint8_t Btn_GPIO_Init(void) {
+    // Schematic R12/R13/R14 provide external pulldowns. Leave internal
+    // pulls off; GPIO_ReadFromInputPin returns 1 while a button is pressed.
+    static const GPIO_Handle_t pins[] = {
+        {.pGPIOx = GPIOC, .GPIO_PinConfig = {
+            .GPIO_PinNumber = 13, .GPIO_PinMode = GPIO_MODE_INPUT}}, // BTN_LED
+        {.pGPIOx = GPIOC, .GPIO_PinConfig = {
+            .GPIO_PinNumber = 3, .GPIO_PinMode = GPIO_MODE_INPUT}}, // BTN_MODE
+        {.pGPIOx = GPIOE, .GPIO_PinConfig = {
+            .GPIO_PinNumber = 4, .GPIO_PinMode = GPIO_MODE_INPUT}}, // BTN_ALARM
+    };
 
-    pToGPIOC13->pGPIOx = GPIOC;
-    pToGPIOC13->GPIO_PinConfig.GPIO_PinMode = GPIO_MODE_INPUT;
-    GPIO_Init(pToGPIOC13);
+    for (uint8_t i = 0; i < sizeof(pins) / sizeof(pins[0]); i++) {
+        uint8_t status = GPIO_Init(&pins[i]);
+        if (status != CORE_OK) return status;
+    }
+    return CORE_OK;
+}
 
-    pToGPIOC3->pGPIOx = GPIOC;
-    pToGPIOC3->GPIO_PinConfig.GPIO_PinMode = GPIO_MODE_INPUT;
-    GPIO_Init(pToGPIOC3);
+uint8_t Board_GPIO_Init(void) {
+    // Zero-initialized fields select PP, low speed, no pulls and no EXTI.
+    // GPIO_Init preloads each output LOW before enabling its driver.
+    // TEMP_EN/MAG_EN polarity still needs the load-switch part number;
+    // do not enable either sensor until that hardware question is resolved.
+    static const GPIO_Handle_t pins[] = {
+        {.pGPIOx = GPIOB, .GPIO_PinConfig = {
+            .GPIO_PinNumber = 0, .GPIO_PinMode = GPIO_MODE_OUTPUT}}, // TEMP_EN
+        {.pGPIOx = GPIOB, .GPIO_PinConfig = {
+            .GPIO_PinNumber = 1, .GPIO_PinMode = GPIO_MODE_OUTPUT}}, // MAG_EN
+        {.pGPIOx = GPIOB, .GPIO_PinConfig = {
+            .GPIO_PinNumber = 13, .GPIO_PinMode = GPIO_MODE_OUTPUT}}, // LED_EN
+        // RTC_INT is active-LOW, pulled up externally by R11.
+        {.pGPIOx = GPIOA, .GPIO_PinConfig = {
+            .GPIO_PinNumber = 0, .GPIO_PinMode = GPIO_MODE_INPUT}},
+    };
 
-    pToGPIOE4->pGPIOx = GPIOE;
-    pToGPIOE4->GPIO_PinConfig.GPIO_PinMode = GPIO_MODE_INPUT;
-    GPIO_Init(pToGPIOE4);
-
+    for (uint8_t i = 0; i < sizeof(pins) / sizeof(pins[0]); i++) {
+        uint8_t status = GPIO_Init(&pins[i]);
+        if (status != CORE_OK) return status;
+    }
+    return Btn_GPIO_Init();
 }
 
