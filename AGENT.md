@@ -42,11 +42,11 @@ src/
   main.c                 entry point: init sequence + superloop
   driver/                MCU register-level drivers (one file per peripheral)
     rcc.c                clock tree: initRCC(), enableRCC()/diableRCC()
-    gpio.c               GPIO_Init, read/write helpers (toggle declared in gpio.h, not yet implemented)
+    gpio.c               validated GPIO_Init and atomic BSRR writes (toggle remains a later-phase declaration)
     i2c.c                I2C master init/transmit/receive (blocking)
     lcd.c                segment-LCD controller (RM0434 ch. 22)
   auxiliary/             board-level glue + external device drivers
-    gpio-pins-setup.c    per-function pin setup (LCD/I2C/buzzer/buttons)
+    gpio-pins-setup.c    Board_GPIO_Init + per-function local pin handles
     rv-3129-c3.c         external RTC: time/date/alarm/timer over I2C
     mmc5603nj.c          magnetometer: init/calibrate/read → heading
 include/                 mirrors src/ one header per .c
@@ -74,12 +74,14 @@ debug/STM32WB55_CM4.svd  SVD for debugger register views
   after the RM bit name (`<REG>_<BIT>_Pos/_Msk` style is fine).
 - Pin setup lives in `auxiliary/gpio-pins-setup.*`, organized by function
   (`LCD_GPIO_Init`, `I2C_GPIO_Init`, …), using the AF table in
-  `REFERENCE.md` §3–4. The `pToGPIOx<N>` pointer array there predates the
-  handle-based approach; prefer explicit local handles in new code and shrink
-  the array when touched.
+  `REFERENCE.md` §3–4. Use fully initialized local handles; the old global
+  `pToGPIOx<N>` pointer array and mixed-function pin table have been removed.
 - External I2C devices keep their raw-byte address convention:
   `RTC_ADDR = 0xAC`, `MAG_ADDR = 0x60` are pre-shifted write bytes. Keep new
   device drivers consistent and note the convention (see REFERENCE.md §6).
+- `GPIO_Init`, `Board_GPIO_Init` and `Btn_GPIO_Init` return `CORE_OK` (0) or
+  `GPIO_CFG_ERR`; do not test them as Boolean success. `initRCC` retains its
+  1-success / 0-timeout contract. GPIO outputs start LOW on every init.
 - Comments explain *why* against the manual ("RM0434 §22.4.2: …"), not what.
 
 ## 5. Documentation rules
@@ -97,12 +99,18 @@ debug/STM32WB55_CM4.svd  SVD for debugger register views
 
 ## 6. Current state
 
-- `initRCC()` works (HSI16 @ 16 MHz); GPIO and I2C drivers exist but are not
-  wired into `main()` yet; LCD driver has `LCD_Init` implemented
-  (RCC enable, GPIO AF setup via `LCD_GPIO_Init`, VSEL, PS/DIV, LCDEN) but
-  `LCD_Blink` is empty and `lcdDisable`/`lcdGetStatus`/`lcdDisplayLow`/
-  `lcdDisplayHigh` are declared without definitions. No display rendering, no
-  sensor integration, no buttons, no buzzer, no LED control in `main.c`.
+- Phase 1 GPIO code is implemented, but physical verification is pending.
+  `main()` calls `initRCC()` then `Board_GPIO_Init()` and waits in `WFI`.
+  Board init configures PC13/PC3/PE4, PA0 and PB0/PB1/PB13 only; input
+  pulls are external, output enables are initially LOW. No EXTI or button actions.
+- `initRCC()` waits for HSI16 readiness, confirms the full HSI16 SWS encoding,
+  retains LSI1 startup, and disables MSI only after successful bounded waits.
+- `python3 test/gpio/run.py` exercises GPIO/RCC and board pin helpers against
+  host-mapped registers (Darwin x86_64, Rosetta on Apple Silicon). This cannot
+  establish electrical behavior; use DEVELOPMENT_PLAN.md's hardware gate.
+- I2C, external RTC/sensors, LCD rendering and buzzer control are not integrated.
+  The dormant pin helpers no longer dereference null handles. LCD peripheral
+  completion and `GPIO_ToggleOutputPin` remain later-phase work.
 
 ## 7. Next phase — integration plan (in order)
 

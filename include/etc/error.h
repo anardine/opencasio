@@ -6,6 +6,7 @@
 #define OPENCAS_ERROR_H
 
 enum CORE_ERROR_CODE {
+      CORE_OK                 = 0,
       RCC_CFG_ERR             = 1, // threw under the condition of failure in enabling the clock of the STM
       GPIO_CFG_ERR            = 2, // threw under the condition of a GPIO init failure
       I2C_CFG_ERR             = 3, // threw under the condition of a I2C init failure
