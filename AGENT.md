@@ -102,12 +102,16 @@ debug/STM32WB55_CM4.svd  SVD for debugger register views
 - Phase 1 GPIO code is implemented, but physical verification is pending.
   `main()` calls `initRCC()` then `Board_GPIO_Init()` and waits in `WFI`.
   Board init configures PC13/PC3/PE4, PA0 and PB0/PB1/PB13 only; input
-  pulls are external, output enables are initially LOW. No EXTI or button actions.
+  pulls are external, output enables are initially LOW.
+- EXTI interrupts are armed: buttons (PC13/PC3/PE4) on rising edge, RTC_INT
+  (PA0) on falling edge. ISRs clear PR1 then call the weak `GPIO_IRQCallback(pin)`;
+  override it in application code when the superloop lands. `platformio.ini`
+  sets `-DHAL_EXTI_MODULE_DISABLED` so the Arduino core's HAL EXTI handlers
+  don't collide with `src/driver/gpio.c`.
 - `initRCC()` waits for HSI16 readiness, confirms the full HSI16 SWS encoding,
   retains LSI1 startup, and disables MSI only after successful bounded waits.
-- `python3 test/gpio/run.py` exercises GPIO/RCC and board pin helpers against
-  host-mapped registers (Darwin x86_64, Rosetta on Apple Silicon). This cannot
-  establish electrical behavior; use DEVELOPMENT_PLAN.md's hardware gate.
+- There is no host test harness: verification is `pio run` plus on-target
+  debugger inspection. Use DEVELOPMENT_PLAN.md's hardware gate for behavior.
 - I2C, external RTC/sensors, LCD rendering and buzzer control are not integrated.
   The dormant pin helpers no longer dereference null handles. LCD peripheral
   completion and `GPIO_ToggleOutputPin` remain later-phase work.

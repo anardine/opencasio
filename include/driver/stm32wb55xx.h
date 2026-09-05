@@ -22,6 +22,7 @@
 #define AHB4_BASE_ADDR                  (0x58000000UL)
 #define APB1_BASE_ADDR                  (0x40000000UL)
 #define APB2_BASE_ADDR                  (0x40010000UL)
+#define NVIC_ISER_BASE_ADDR             (0xE000E100UL)
 
 //System Wide Configs and RCC control
 #define RCC_BASE_ADDR                   (AHB4_BASE_ADDR + 0x0000UL)
@@ -245,6 +246,15 @@ typedef struct
 
 #define SPI                            ((SPIx_RegTypeDef *) SPI2_BASE_ADDR)
 
+
+//NVIC - only the ISER block is needed: EXTI lines share IRQ numbers, priorities stay at reset default
+typedef struct
+{
+   volatile uint32_t iser[8];           // 0x00-0x1C: interrupt set-enable registers 0-7
+} NVIC_ISER_RegTypeDef;
+
+#define NVIC_ISER                       ((NVIC_ISER_RegTypeDef*) NVIC_ISER_BASE_ADDR)
+
 typedef struct
 {
     volatile uint32_t cr1;               // 0x00: control register 1
@@ -332,6 +342,13 @@ typedef struct
  #define GPIO_PUPD_PU               1U
  #define GPIO_PUPD_PD               2U
 
+ // EXTI edge selection stored in GPIO_PinConfig_t.GPIO_isInterrupt
+ // (RM0434 section 16.6.1/16.6.2: RTSR/FTSR per-line enable bits)
+ #define GPIO_IRQ_OFF               0U
+ #define GPIO_IRQ_RISING            1U
+ #define GPIO_IRQ_FALLING           2U
+ #define GPIO_IRQ_BOTH              3U
+
  // Define GPIO Alternate Function Low (AFL) values
 #define GPIO_AFL_AF0                0x0U
 #define GPIO_AFL_AF1                0x1U
@@ -418,5 +435,19 @@ typedef struct
 #define I2C_TX_INT_EN                   1U
 #define I2C_RX_INT_EN                   1U
 
+
+// Other Definitions
+
+// NVIC IRQ numbers for EXTI GPIO lines (CPU1 vector table)
+enum EXTI_IRQ_NUMBER
+{
+      EXTI0_IRQ      = 6,
+      EXTI1_IRQ      = 7,
+      EXTI2_IRQ      = 8,
+      EXTI3_IRQ      = 9,
+      EXTI4_IRQ      = 10,
+      EXTI9_5_IRQ    = 23,
+      EXTI15_10_IRQ  = 40,
+};
 
 #endif

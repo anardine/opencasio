@@ -31,8 +31,9 @@ Develop robust, low-power firmware for a wristwatch replacement board, integrati
 - GPIO bring-up is implemented: `main()` calls `Board_GPIO_Init()` after clock setup, then waits with `WFI` for debugger inspection. No button actions or interrupt wakeups yet.
 - `initRCC()` now waits for HSI16 readiness and the full `SWS=01` status before disabling MSI; startup waits are bounded. The existing LSI1 startup is retained for later LCD work.
 - GPIO init returns `CORE_OK` / `GPIO_CFG_ERR`; output writes use BSRR, and outputs are latched LOW before their mode is enabled.
+- EXTI/NVIC interrupt support is implemented: buttons PC13/PC3/PE4 fire on the rising (press) edge, RTC_INT PA0 on the falling (assert) edge. `GPIO_IRQCallback(pin)` is the weak override point for application reactions. `main()` sleeps in WFI and wakes on any of these events.
 - I2C, RTC, sensor, LCD and buzzer integration remain pending. Their existing pin helpers use initialized local handles, not null global pointers; this does not complete those phases.
-- `pio run` passed; `python3 test/gpio/run.py` passed 353 register-contract checks. Both the output-clear bug and incorrect HSI16 status check were reproduced before their fixes and passed afterward. Physical GPIO/clock verification is still pending: no ST-Link was detected locally. Do not advance to Phase 2 until the hardware gate below passes.
+- `pio run` passes. Both the output-clear bug and incorrect HSI16 status check were reproduced before their fixes and passed afterward. Physical GPIO/clock verification is still pending: no ST-Link was detected locally. Do not advance to Phase 2 until the hardware gate below passes.
 
 ## Detailed Task List
 
@@ -40,16 +41,15 @@ Develop robust, low-power firmware for a wristwatch replacement board, integrati
 - [x] Define initialized board GPIO handles in `src/auxiliary/gpio-pins-setup.c`; retain generic handle types in `include/driver/gpio.h`.
 - [x] Configure PC13/PC3/PE4 buttons and PA0 RTC input without internal pulls (external resistors provide the bias).
 - [x] Configure PB0/PB1/PB13 as low-speed push-pull outputs, initially LOW, and initialize from `src/main.c`.
+- [x] Arm EXTI interrupts: buttons rising edge, RTC_INT falling edge (SYSCFG mux + RTSR/FTSR + IMR1 + NVIC ISER).
 - [ ] Verify on the physical watch through ST-Link before Phase 2.
 
-Hardware gate (not exercised by host checks):
+Hardware gate (no host checks; verify on the board):
 - At the `WFI` loop, confirm `RCC_CR.HSIRDY=1`, `RCC_CFGR.SW=01`, `RCC_CFGR.SWS=01`, and GPIO A/B/C/E clocks enabled (`(AHB2ENR & 0x17) == 0x17`).
 - Confirm `(GPIOB_ODR & 0x2003) == 0` and probe PB0/PB1/PB13 for LOW throughout startup. BSRR reads return zero on hardware; inspect ODR and the physical pins instead.
 - Check PC13/PC3/PE4: idle LOW, pressed HIGH. Check PA0: idle HIGH, LOW when the external RTC asserts INT (not configured by this increment).
 - Confirm PA13/PA14 remain usable for SWD and I2C/LCD/buzzer pins were not reconfigured by board startup.
 - Identify U11/U12 and verify enable polarity before claiming the sensor rails are OFF. LOW enable levels alone cannot prove switched-rail behavior or absence of I2C back-powering.
-
-Host regression command: `python3 test/gpio/run.py`. It exercises the real GPIO/RCC/pin-setup C against mapped RAM, not physical hardware. Darwin uses an x86_64 test binary to permit low-address MMIO mappings; Apple Silicon requires Rosetta.
 
 ### Phase 2: I2C1 Bring-up
 - [ ] Implement `I2C_Init` in `src/driver/i2c.c` for 100 kHz Standard Mode (PB8/PB9).

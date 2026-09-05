@@ -60,7 +60,6 @@ As of now, the code is still under development. PRs are welcomed.
 
 Build with `pio run`; run host register-level checks with `python3 test/gpio/run.py` (Rosetta is required on Apple Silicon). These checks do not replace electrical verification. Follow the Phase 1 hardware gate in `DEVELOPMENT_PLAN.md` before starting I2C bring-up.
 
-
 ### How to Contribute
 
 This is a tough project to assembly by hand. All the parts were sourced and assembled using JLCPCB amazing factory. Since it's around \$50 per board (completely ready and assembled, around \$250 for five), feel free to order to split. You're welcome to develop this using bigger parts or take the challenge to solder them. Since this is a one-sided board, you can also use a solder plate.

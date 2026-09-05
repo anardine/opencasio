@@ -27,7 +27,9 @@ int main() {
       if (status != CORE_OK) return status;
 
       // GPIO bring-up checkpoint: inspect IDR/ODR through ST-Link.
-      // No wake source is configured yet; do not burn power in a busy spin.
+      // EXTI wake sources (3 buttons rising, RTC_INT falling) are armed by
+      // Board_GPIO_Init; WFI returns on each event until Phase 7 adds the
+      // event-driven superloop.
       while (1)
       {
             __asm volatile ("wfi");

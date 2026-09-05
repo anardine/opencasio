@@ -60,13 +60,18 @@ void Buzzer_GPIO_Init(void) {
 uint8_t Btn_GPIO_Init(void) {
     // Schematic R12/R13/R14 provide external pulldowns. Leave internal
     // pulls off; GPIO_ReadFromInputPin returns 1 while a button is pressed.
+    // Buttons are active-HIGH: the press edge is rising. Release is handled
+    // by polling in the UI task later, not by a second interrupt edge.
     static const GPIO_Handle_t pins[] = {
         {.pGPIOx = GPIOC, .GPIO_PinConfig = {
-            .GPIO_PinNumber = 13, .GPIO_PinMode = GPIO_MODE_INPUT}}, // BTN_LED
+            .GPIO_PinNumber = 13, .GPIO_PinMode = GPIO_MODE_INPUT,
+            .GPIO_isInterrupt = GPIO_IRQ_RISING}}, // BTN_LED
         {.pGPIOx = GPIOC, .GPIO_PinConfig = {
-            .GPIO_PinNumber = 3, .GPIO_PinMode = GPIO_MODE_INPUT}}, // BTN_MODE
+            .GPIO_PinNumber = 3, .GPIO_PinMode = GPIO_MODE_INPUT,
+            .GPIO_isInterrupt = GPIO_IRQ_RISING}}, // BTN_MODE
         {.pGPIOx = GPIOE, .GPIO_PinConfig = {
-            .GPIO_PinNumber = 4, .GPIO_PinMode = GPIO_MODE_INPUT}}, // BTN_ALARM
+            .GPIO_PinNumber = 4, .GPIO_PinMode = GPIO_MODE_INPUT,
+            .GPIO_isInterrupt = GPIO_IRQ_RISING}}, // BTN_ALARM
     };
 
     for (uint8_t i = 0; i < sizeof(pins) / sizeof(pins[0]); i++) {
@@ -88,9 +93,11 @@ uint8_t Board_GPIO_Init(void) {
             .GPIO_PinNumber = 1, .GPIO_PinMode = GPIO_MODE_OUTPUT}}, // MAG_EN
         {.pGPIOx = GPIOB, .GPIO_PinConfig = {
             .GPIO_PinNumber = 13, .GPIO_PinMode = GPIO_MODE_OUTPUT}}, // LED_EN
-        // RTC_INT is active-LOW, pulled up externally by R11.
+        // RTC_INT is active-LOW, pulled up externally by R11: the assertion
+        // edge is falling.
         {.pGPIOx = GPIOA, .GPIO_PinConfig = {
-            .GPIO_PinNumber = 0, .GPIO_PinMode = GPIO_MODE_INPUT}},
+            .GPIO_PinNumber = 0, .GPIO_PinMode = GPIO_MODE_INPUT,
+            .GPIO_isInterrupt = GPIO_IRQ_FALLING}},
     };
 
     for (uint8_t i = 0; i < sizeof(pins) / sizeof(pins[0]); i++) {
