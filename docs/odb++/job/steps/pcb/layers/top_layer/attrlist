@@ -1,0 +1,6 @@
+UNITS=MM
+.eda_layers = top_layer
+.layer_dielectric = 0
+.copper_weight = 0.0350012
+.dielectric_constant = 0
+.loss_tangent = 0

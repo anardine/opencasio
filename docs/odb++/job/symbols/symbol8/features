@@ -1,0 +1,15 @@
+UNITS=MM
+
+#Feature symbol names
+
+#Feature attribute names
+
+#Layer features
+S P 0
+OB -1.30274314 -1.44315688 I
+OS -1.30274314 1.4568424
+OS 1.30275584 1.44315434
+OS 1.30275584 -1.45684494
+OS -1.30274314 -1.44315688
+OE
+SE
