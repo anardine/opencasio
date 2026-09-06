@@ -20,4 +20,17 @@ void railOn(void);
 void railOff(void);
 void railSettleDelay(void);
 
+// LED on PB13 (active-HIGH via Q2 N-FET, REFERENCE.md §3).
+void ledOn(void);
+void ledOff(void);
+void ledToggle(void);
+
+// Buzzer on PA5 (BUZZER_DIN → amp U1, REFERENCE.md §3).
+// GPIO square-wave for now; PWM via TIM2_CH1 is a later enhancement.
+// buzzerBeep toggles PA5 at ~1 kHz for the given duration in ms (coarse:
+// 16 MHz / 8000 iterations ≈ 0.5 ms per loop, 2 toggles = 1 period).
+void buzzerOn(void);
+void buzzerOff(void);
+void buzzerBeep(uint16_t duration_ms);
+
 #endif // OPENCASIO_GPIO_PINS_SETUP_H

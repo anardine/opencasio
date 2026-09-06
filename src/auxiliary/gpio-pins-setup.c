@@ -81,6 +81,41 @@ void railSettleDelay(void) {
     for (volatile uint32_t i = 0; i < 4000; i++) __asm volatile ("nop");
 }
 
+// PB13 = LED_EN → R18 → Q2 gate. HIGH = LED on (REFERENCE.md §3).
+static const GPIO_Handle_t ledPin = {
+    .pGPIOx = GPIOB, .GPIO_PinConfig = { .GPIO_PinNumber = 13 },
+};
+
+void ledOn(void)     { GPIO_WriteToOutputPin(&ledPin, 1); }
+void ledOff(void)    { GPIO_WriteToOutputPin(&ledPin, 0); }
+void ledToggle(void) {
+    // Read ODR bit 13, invert. BSRR set/reset in one write.
+    if (GPIOB->odr & (1U << 13))
+        GPIOB->bsrr = (1U << (13 + 16));  // reset
+    else
+        GPIOB->bsrr = (1U << 13);         // set
+}
+
+// PA5 = BUZZER_DIN → amp U1 (REFERENCE.md §3). GPIO square-wave for now.
+static const GPIO_Handle_t buzzerPin = {
+    .pGPIOx = GPIOA, .GPIO_PinConfig = { .GPIO_PinNumber = 5 },
+};
+
+void buzzerOn(void)  { GPIO_WriteToOutputPin(&buzzerPin, 1); }
+void buzzerOff(void) { GPIO_WriteToOutputPin(&buzzerPin, 0); }
+
+// Coarse beep: ~1 kHz square-wave. At 16 MHz, 8000 nops ≈ 0.5 ms per
+// half-cycle → 1 kHz. duration_ms * 2 half-cycles.
+void buzzerBeep(uint16_t duration_ms) {
+    uint32_t cycles = (uint32_t)duration_ms * 2;
+    for (uint32_t i = 0; i < cycles; i++) {
+        GPIOA->bsrr = (1U << 5);              // HIGH
+        for (volatile uint32_t d = 0; d < 8000; d++) __asm volatile ("nop");
+        GPIOA->bsrr = (1U << (5 + 16));       // LOW
+        for (volatile uint32_t d = 0; d < 8000; d++) __asm volatile ("nop");
+    }
+}
+
 uint8_t Btn_GPIO_Init(void) {
     // Schematic R12/R13/R14 provide external pulldowns. Leave internal
     // pulls off; GPIO_ReadFromInputPin returns 1 while a button is pressed.

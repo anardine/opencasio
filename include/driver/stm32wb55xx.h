@@ -26,6 +26,7 @@
 
 //System Wide Configs and RCC control
 #define RCC_BASE_ADDR                   (AHB4_BASE_ADDR + 0x0000UL)
+#define PWR_BASE_ADDR                    (AHB4_BASE_ADDR + 0x1000UL)
 #define SYSCFG_BASE_ADDR                (APB2_BASE_ADDR + 0x0000UL)
 #define EXTI_BASE_ADDR                  (AHB4_BASE_ADDR + 0X0800UL)
 
@@ -94,6 +95,38 @@ typedef struct
 } RCC_RegTypeDef;
 
 #define RCC                             ((RCC_RegTypeDef *) RCC_BASE_ADDR)
+
+// PWR (RM0434 §6.6). Only CR1 is needed: DBP bit 8 unlocks BDCR writes.
+typedef struct {
+    volatile uint32_t cr1;              // 0x00: power control register 1
+    volatile uint32_t cr2;              // 0x04: power control register 2
+    volatile uint32_t cr3;              // 0x08: power control register 3
+    volatile uint32_t cr4;              // 0x0C: power control register 4
+    volatile uint32_t sr1;              // 0x10: power status register 1
+    volatile uint32_t sr2;              // 0x14: power status register 2
+    volatile uint32_t scr;              // 0x18: power status clear register
+    volatile uint32_t pucra;            // 0x1C: pull-up control register A
+    volatile uint32_t pdcra;            // 0x20: pull-down control register A
+    volatile uint32_t pucrb;            // 0x24: pull-up control register B
+    volatile uint32_t pdcrb;            // 0x28: pull-down control register B
+    volatile uint32_t pucrc;            // 0x2C: pull-up control register C
+    volatile uint32_t pdcrc;            // 0x30: pull-down control register C
+    volatile uint32_t pucrd;            // 0x34: pull-up control register D
+    volatile uint32_t pdcrd;            // 0x38: pull-down control register D
+    volatile uint32_t pucre;            // 0x3C: pull-up control register E
+    volatile uint32_t pdcre;            // 0x40: pull-down control register E
+    volatile uint32_t pucrh;            // 0x44: pull-up control register H
+    volatile uint32_t pdcrh;            // 0x48: pull-down control register H
+    volatile uint32_t cr5;              // 0x4C: power control register 5
+} PWR_RegTypeDef;
+
+#define PWR                             ((PWR_RegTypeDef *) PWR_BASE_ADDR)
+
+// BDCR (RCC offset 0x090): RTCCLK source for LCD clock (RM0434 §6.4.32).
+// RTCSEL[1:0] at bits 9:8: 00=none, 01=LSE, 10=LSI1, 11=HSE/32.
+#define PWR_CR1_DBP                     (1U << 8)
+#define RCC_BDCR_RTCSEL_LSB             8U
+#define RCC_BDCR_RTCSEL_LSI1            (2U << 8)
 
 
 //SYSCFG
@@ -306,6 +339,31 @@ typedef struct
 // clock disable for SPI
 #define SPI_CLK_DIS     (RCC->apb1enr1 &= ~(1 << 14))
 
+
+// LCD register bits (RM0434 §22.6)
+// LCD_CR
+#define LCD_CR_LCDEN                    (1U << 0)
+#define LCD_CR_VSEL                     (1U << 1)
+#define LCD_CR_DUTY_1_3                 (2U << 2)   // 010 = 1/3 duty
+#define LCD_CR_BIAS_1_3                 (2U << 5)   // 10 = 1/3 bias
+#define LCD_CR_MUX_SEG                  (1U << 7)
+#define LCD_CR_BUFEN                    (1U << 8)
+// LCD_FCR: PS=4 DIV=6 → ~31 Hz at 1/3 duty with LCDCLK=32kHz (Table 115)
+#define LCD_FCR_PS_4                    (4U << 22)
+#define LCD_FCR_DIV_6                   (6U << 18)
+#define LCD_FCR_CC_VLCD3                (3U << 10)  // Contrast: VLCD3 (midrange)
+#define LCD_FCR_HD                      (1U << 0)   // High drive
+#define LCD_FCR_PON_1                   (1U << 4)   // 1 pulse on duration
+// LCD_SR
+#define LCD_SR_ENS                      (1U << 0)
+#define LCD_SR_SOF                      (1U << 1)
+#define LCD_SR_UDR                      (1U << 2)
+#define LCD_SR_UDD                      (1U << 3)
+#define LCD_SR_RDY                      (1U << 4)
+#define LCD_SR_FCRSF                    (1U << 5)
+// LCD_CLR
+#define LCD_CLR_SOFC                    (1U << 1)
+#define LCD_CLR_UDDC                    (1U << 3)
 
 //overall macro definitions of set/unset registers
 

@@ -74,17 +74,17 @@ Hardware gate:
 - [x] Create heading calculation helper.
 
 ### Phase 5: LCD Driver Completion
-- [ ] Implement `lcdDisable`, `lcdGetStatus`, `lcdDisplayLow`, `lcdDisplayHigh` in `src/driver/lcd.c`.
-- [ ] Configure LCD controller (1/3 duty/bias, internal step-up).
+- [x] Implement `lcdDisable`, `lcdGetStatus`, `lcdDisplayWrite`, `lcdDisplayUpdate` in `src/driver/lcd.c`.
+- [x] Configure LCD controller (1/3 duty/bias, internal step-up).
 - [ ] Add rendering functions based on the glass truth table from `REFERENCE.md`.
 
 ### Phase 6: Buzzer/LED Control
-- [ ] Implement LED toggle function (`PB13`).
-- [ ] Implement tone generation function (`PA5`) using GPIO (later PWM).
+- [x] Implement LED toggle function (`PB13`).
+- [x] Implement tone generation function (`PA5`) using GPIO (later PWM).
 
 ### Phase 7: Superloop & Power Management
-- [ ] Refactor `main.c` superloop into an event-driven architecture using LPTIM/RTC interrupts.
-- [ ] Implement low-power sleep modes between events.
+- [x] Refactor `main.c` superloop into an event-driven architecture using EXTI interrupts.
+- [x] Implement low-power sleep (WFI) between events.
 
 ## Simulator (Renode)
 

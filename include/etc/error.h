@@ -12,6 +12,7 @@ enum CORE_ERROR_CODE {
       I2C_CFG_ERR             = 3, // threw under the condition of a I2C init failure
       I2C_NACK_ERR            = 4, // target did not ACK its address byte (bus scan: device absent)
       I2C_BUS_ERR             = 5, // BERR/ARLO or timeout while polling I2C status flags
+      LCD_CFG_ERR             = 6, // LCD init failure (timeout, wrong config)
 };
 
 enum PER_ERROR_CODE {
