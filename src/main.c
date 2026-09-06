@@ -68,20 +68,49 @@ static void handleButtonPress(uint8_t buttonId) {
     (void)buttonId;
 }
 
-// Process RTC interrupt: clear alarm/timer flags on the RTC, refresh time.
+// Format time as HHMMSS for LCD positions 4-9.
+static void displayTimeOnLcd(void) {
+    char buf[7];
+    buf[0] = '0' + (rtcTime.hours / 10);
+    buf[1] = '0' + (rtcTime.hours % 10);
+    buf[2] = '0' + (rtcTime.minutes / 10);
+    buf[3] = '0' + (rtcTime.minutes % 10);
+    buf[4] = '0' + (rtcTime.seconds / 10);
+    buf[5] = '0' + (rtcTime.seconds % 10);
+    buf[6] = 0;
+    lcdDisplayString(buf, 4);
+    lcdSetColon();
+    lcdDisplayUpdate();
+}
+
+static void displayDateOnLcd(void) {
+    char buf[3];
+    buf[0] = '0' + (rtcDate.weekday / 10);
+    buf[1] = '0' + (rtcDate.weekday % 10);
+    buf[2] = 0;
+    lcdDisplayString(buf, 0);
+    buf[0] = '0' + (rtcDate.day / 10);
+    buf[1] = '0' + (rtcDate.day % 10);
+    buf[2] = 0;
+    lcdDisplayString(buf, 2);
+    lcdDisplayUpdate();
+}
+
 static void handleRtcInterrupt(void) {
     // Clear both alarm and timer flags (write 0 to AF and TF bits).
     uint8_t clearVal = 0xFFU & ~(RTC_FLAG_AF | RTC_FLAG_TF);
     writeToRTC(&pToI2C, RTC_REG_CONTROL_INT_FLAG, &clearVal, 1);
     // Refresh time from RTC.
     rtcReadStatus = getTime(&pToI2C, &rtcTime);
-    if (rtcReadStatus == CORE_OK)
+    if (rtcReadStatus == CORE_OK) {
         rtcReadStatus = getDate(&pToI2C, &rtcDate);
+        displayDateOnLcd();
+        displayTimeOnLcd();
+    }
 }
 
 int main() {
 
-      if (!initRCC()) return RCC_CFG_ERR;
 
       uint8_t status = Board_GPIO_Init();
       if (status != CORE_OK) return status;
@@ -111,6 +140,12 @@ int main() {
       rtcReadStatus = getTime(&pToI2C, &rtcTime);
       if (rtcReadStatus == CORE_OK)
             rtcReadStatus = getDate(&pToI2C, &rtcDate);
+
+      // --- LCD: display time and date ---
+      if (rtcReadStatus == CORE_OK) {
+            displayDateOnLcd();
+            displayTimeOnLcd();
+      }
 
       // --- Sensors ---
       if (i2cScanMag) {

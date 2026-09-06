@@ -105,6 +105,107 @@ Notes:
 - Unused MCU LCD-capable pins stay GPIO so the controller doesn't drive phantom segments.
 - Datasheet package capability: VFQFPN68 supports up to 4 COM × 28 SEG; we use 3 × 24.
 
+## 4a. F-91W glass truth table
+
+Adapted from the [Sensor-Watch](https://github.com/joeycastillo/Sensor-Watch) project (MIT license, © 2020 Joey Castillo), which uses the same Casio F-91W glass. The tables below map each digit position's 7 segments to COM/SEG pairs, and define the 7-segment bit patterns for each ASCII character. Source: `src/driver/lcd.c` (`Segment_Map[]`, `Character_Set[]`).
+
+### Segment map (COM/SEG per digit position)
+
+The F-91W has 10 digit positions. Each position has 7 segments (A-G) mapped to a (COM, SEG) pair. The LCD controller uses 1/3 duty (COM0-COM2). Segments listed as "none" don't exist for that position.
+
+Standard 7-segment layout:
+```
+   A
+ F   B
+   G
+ E   C
+   D
+```
+
+| Position | Function | Seg A | Seg B | Seg C | Seg D | Seg E | Seg F | Seg G | Extra |
+|----------|----------|-------|-------|-------|-------|-------|-------|-------|-------|
+| 0 | Day of week | COM0 SEG13 | COM1 SEG13 | COM2 SEG13 | COM2 SEG15 | COM2 SEG14 | COM0 SEG14 | COM1 SEG15 | COM1 SEG14 |
+| 1 | Day of week | COM0 SEG11 | COM1 SEG11 | COM1 SEG11 | COM2 SEG11 | COM1 SEG12 | COM1 SEG12 | COM2 SEG12 | COM0 SEG12 |
+| 2 | Day of month | COM1 SEG9 | COM0 SEG9 | COM2 SEG9 | COM1 SEG9 | COM0 SEG10 | none | COM1 SEG9 | none |
+| 3 | Day of month | COM0 SEG7 | COM1 SEG7 | COM2 SEG7 | COM2 SEG6 | COM2 SEG8 | COM0 SEG8 | COM1 SEG8 | none |
+| 4 | Clock hours | COM1 SEG18 | COM2 SEG19 | COM0 SEG19 | COM1 SEG18 | COM0 SEG18 | COM2 SEG18 | COM1 SEG19 | none |
+| 5 | Clock hours | COM2 SEG20 | COM2 SEG21 | COM1 SEG21 | COM0 SEG21 | COM0 SEG20 | COM1 SEG17 | COM1 SEG20 | none |
+| 6 | Clock minutes | COM0 SEG22 | COM2 SEG23 | COM0 SEG23 | COM0 SEG22 | COM1 SEG22 | COM2 SEG22 | COM1 SEG23 | none |
+| 7 | Clock minutes | COM2 SEG1 | COM2 SEG10 | COM0 SEG1 | COM0 SEG0 | COM1 SEG0 | COM2 SEG0 | COM1 SEG1 | none |
+| 8 | Clock seconds | COM2 SEG2 | COM2 SEG3 | COM0 SEG4 | COM0 SEG3 | COM0 SEG2 | COM1 SEG2 | COM1 SEG3 | none |
+| 9 | Clock seconds | COM2 SEG4 | COM2 SEG5 | COM1 SEG6 | COM0 SEG6 | COM0 SEG5 | COM1 SEG4 | COM1 SEG5 | none |
+
+Notes:
+- Positions 0 and 1 share segments B/C and E/F (the F-91W day-of-week digits are narrow).
+- Position 0 has an extra segment (COM1 SEG14) used for characters B, D, and @.
+- Position 2 is missing segment F (limited character set).
+- Segments A/D are shared in positions 1, 4, and 6 (both halves of the digit share one COM/SEG pair).
+
+### Character set (7-segment bit patterns)
+
+Bits [6:0] correspond to segments G-F-E-D-C-B-A (LSB = segment A). `1` = on, `-` = off.
+
+| Char | A | B | C | D | E | F | G | Notes |
+|------|---|---|---|---|---|---|---|-------|
+| (space) | - | - | - | - | - | - | - | |
+| 0 | 1 | 1 | 1 | 1 | 1 | 1 | - | |
+| 1 | - | 1 | 1 | - | - | - | - | |
+| 2 | 1 | 1 | - | 1 | 1 | - | 1 | |
+| 3 | 1 | 1 | 1 | 1 | - | - | 1 | |
+| 4 | - | 1 | 1 | - | - | 1 | 1 | |
+| 5 | 1 | - | 1 | 1 | - | 1 | 1 | |
+| 6 | 1 | - | 1 | 1 | 1 | 1 | 1 | |
+| 7 | 1 | 1 | 1 | - | - | - | - | |
+| 8 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | |
+| 9 | 1 | 1 | 1 | 1 | - | 1 | 1 | |
+| A | 1 | 1 | 1 | - | 1 | 1 | 1 | |
+| B | 1 | 1 | 1 | 1 | 1 | 1 | 1 | = 8 pattern |
+| C | 1 | - | - | 1 | 1 | 1 | - | |
+| D | 1 | 1 | 1 | 1 | 1 | 1 | - | = 0 pattern |
+| E | 1 | - | - | 1 | 1 | 1 | 1 | |
+| F | 1 | - | - | - | 1 | 1 | 1 | |
+| G | 1 | - | 1 | 1 | 1 | 1 | - | |
+| H | - | 1 | 1 | - | 1 | 1 | 1 | |
+| I | 1 | - | - | 1 | - | - | - | position 0 only |
+| J | - | 1 | 1 | 1 | - | - | - | |
+| L | - | - | - | 1 | 1 | 1 | - | |
+| N | 1 | 1 | 1 | - | 1 | 1 | - | |
+| O | 1 | 1 | 1 | 1 | 1 | 1 | - | = 0 pattern |
+| P | 1 | 1 | - | - | 1 | 1 | 1 | |
+| R | 1 | 1 | 1 | - | 1 | 1 | 1 | position 1 only |
+| S | 1 | - | 1 | 1 | - | 1 | 1 | = 5 pattern |
+| T | 1 | - | - | - | - | - | - | position 0 only |
+| U | - | 1 | 1 | 1 | 1 | 1 | - | |
+| Y | - | 1 | 1 | 1 | - | 1 | 1 | |
+| a | 1 | 1 | 1 | 1 | 1 | - | 1 | |
+| b | - | - | 1 | 1 | 1 | 1 | 1 | |
+| c | - | - | - | 1 | 1 | - | 1 | |
+| d | - | 1 | 1 | 1 | 1 | - | 1 | |
+| e | 1 | 1 | - | 1 | 1 | 1 | 1 | |
+| h | - | - | 1 | - | 1 | 1 | 1 | |
+| i | - | - | - | - | 1 | - | - | |
+| l | - | - | - | - | 1 | 1 | - | |
+| n | - | - | 1 | - | 1 | - | 1 | |
+| o | - | - | 1 | 1 | 1 | - | 1 | |
+| r | - | - | - | - | 1 | - | 1 | |
+| s | 1 | - | 1 | 1 | - | 1 | 1 | = 5 pattern |
+| t | - | - | - | 1 | 1 | 1 | 1 | |
+| u | - | 1 | - | - | - | 1 | 1 | upper half |
+| - | - | - | - | - | - | - | 1 | minus |
+
+Full table (96 entries, ASCII 0x20-0x7E) in `src/driver/lcd.c` `Character_Set[]`.
+
+### Indicator and colon segments
+
+| Indicator | COM | SEG | Icon |
+|-----------|-----|-----|------|
+| SIGNAL | 0 | 17 | hourly signal / sensor-on |
+| BELL | 0 | 16 | alarm set |
+| PM | 2 | 17 | afternoon (PM) |
+| 24H | 2 | 16 | 24-hour mode |
+| LAP | 1 | 10 | stopwatch lap |
+| Colon | 1 | 16 | between hours and minutes |
+
 ## 5. Full netlist (verbatim, schematic version)
 
 ```
@@ -168,7 +269,6 @@ All confirmed against the device datasheets (`docs/rv3129_appman.txt`, `docs/mmc
 ## 7. Open questions (resolve during development)
 
 1. Which SEG index (30/42, 29/41, 28/40) applies on PC12/PC11/PC10 in 1/3 duty — resolve via RM0434 SEG/COM mux rules during LCD driver work.
-2. F-91W glass truth table: pad ↔ digit-segment map. Needed before any digit rendering works.
 3. Load-switch polarity (EN active-high?) and startup rise time → delay after enabling rail before I2C access. Switch part numbers not in netlist.
 4. Buzzer amp U1 identity/gain: determines whether PA5 should be PWM (tone) or square-wave GPIO.
 5. BME280 SDO strap (addr 0x76 vs 0x77).

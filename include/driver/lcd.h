@@ -12,19 +12,29 @@
 #include "etc/error.h"
 
 // The F-91W glass has 3 commons (COM0-2) and 24 segment lines.
-// In 1/3 duty with MUX_SEG=0 on VFQFPN68, SEG[42:40] and SEG[24:0]
-// are available (28 lines); we use 24 of those (REFERENCE.md §4).
-// The glass truth table (pad ↔ digit-segment map) is not yet known
-// (REFERENCE.md §7.2), so rendering functions are deferred.
+// 1/3 duty, 1/3 bias. The glass truth table (pad ↔ digit-segment map)
+// is adapted from the Sensor-Watch project (joeycastillo/Sensor-Watch),
+// which uses the same Casio F-91W glass.
 
 // LCD status return type.
 typedef struct {
-    uint8_t enabled;       // ENS
-    uint8_t ready;         // RDY (step-up converter)
-    uint8_t update_done;   // UDD
-    uint8_t sof;           // SOF (start of frame)
-    uint8_t fcr_synced;    // FCRSF
+    uint8_t enabled;
+    uint8_t ready;
+    uint8_t update_done;
+    uint8_t sof;
+    uint8_t fcr_synced;
 } lcd_status_t;
+
+// Indicator segments (F-91W glass, from Sensor-Watch).
+typedef enum {
+    LCD_INDICATOR_SIGNAL = 0,  // hourly signal / sensor-on
+    LCD_INDICATOR_BELL,        // alarm set
+    LCD_INDICATOR_PM,          // PM indicator
+    LCD_INDICATOR_24H,         // 24-hour mode
+    LCD_INDICATOR_LAP          // stopwatch lap
+} lcd_indicator_t;
+
+#define LCD_NUM_POSITIONS  10  // 10 digit positions (0=day-of-week, 2-3=day, 4-9=time)
 
 // Initialize the LCD controller:
 // - Route LSI1 to RTCCLK (BDCR.RTCSEL) for LCDCLK
@@ -41,18 +51,35 @@ void lcdDisable(void);
 // Read LCD status register into struct.
 lcd_status_t lcdGetStatus(void);
 
+// Set/clear a single pixel by COM (0-2) and SEG (0-23).
+void lcdSetPixel(uint8_t com, uint8_t seg);
+void lcdClearPixel(uint8_t com, uint8_t seg);
+
 // Write segment data to LCD RAM for a given COM (0-2).
-// Each COM has a 32-bit low word (SEG[31:0]) and 12-bit high word
-// (SEG[43:32]). The caller provides both; unused bits are ignored.
-// After writing, sets UDR to transfer to display buffer.
-// Returns CORE_OK or LCD_CFG_ERR (invalid COM index).
+// segLow = SEG[31:0], segHigh = SEG[43:32] (only bits 11:0 used).
 uint8_t lcdDisplayWrite(uint8_t com, uint32_t segLow, uint32_t segHigh);
 
 // Clear all LCD RAM (all segments off) and trigger update.
 void lcdDisplayClear(void);
 
 // Trigger UDR: transfers LCD_RAM to display buffer at next frame.
-// Must be called after any RAM write for changes to appear.
 void lcdDisplayUpdate(void);
+
+// Display a single character at a digit position (0-9).
+// Uses the F-91W glass segment map from Sensor-Watch.
+void lcdDisplayChar(char c, uint8_t position);
+
+// Display a null-terminated string starting at position.
+// Space clears the digit. Max 10 characters.
+void lcdDisplayString(const char *str, uint8_t position);
+
+// Colon between hours and minutes.
+void lcdSetColon(void);
+void lcdClearColon(void);
+
+// Indicator segments.
+void lcdSetIndicator(lcd_indicator_t indicator);
+void lcdClearIndicator(lcd_indicator_t indicator);
+void lcdClearAllIndicators(void);
 
 #endif //OPENCASIO_LCD_H

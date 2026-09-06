@@ -4,74 +4,267 @@
 
 #include "driver/lcd.h"
 
-// Bounded poll for a status flag (RM0434 §22.6.3).
-#define LCD_POLL_LIMIT  100000U
+// --- F-91W glass truth table ---
+// Adapted from Sensor-Watch (joeycastillo/Sensor-Watch, MIT license).
+// The F-91W glass is the same physical LCD; the COM/SEG numbering
+// matches because both projects wire the same glass pads to COM0-2 /
+// SEG0-23 (Sensor-Watch SAM L22 SLCD, our STM32WB55 LCD controller).
 
-// COM RAM register pairs: com0_l/com0_h at indices 0/1, etc.
-// The struct fields com0_l..com7_h map to LCD_RAM registers at
-// offset 0x14 + 4*x (RM0434 §22.6.5–22.6.7).
-// For 1/3 duty only COM0-COM2 are active.
+// 7-segment character patterns: bits [6:0] = segments A-G.
+// Index = character - 0x20 (ASCII space through ~).
+static const uint8_t Character_Set[] = {
+    0b00000000, // (space)
+    0b01100000, // ! (L in top half for positions 4/6)
+    0b00100010, // "
+    0b01100011, // # (degree symbol)
+    0b00101101, // $ (S without center)
+    0b00000000, // % (unused)
+    0b01000100, // & (lowercase 7)
+    0b00100000, // '
+    0b00111001, // (
+    0b00001111, // )
+    0b11000000, // * (+ for position 0)
+    0b01110000, // + (segments E,F,G)
+    0b00000100, // ,
+    0b01000000, // -
+    0b01000000, // . (same as -)
+    0b00010010, // /
+    0b00111111, // 0
+    0b00000110, // 1
+    0b01011011, // 2
+    0b01001111, // 3
+    0b01100110, // 4
+    0b01101101, // 5
+    0b01111101, // 6
+    0b00000111, // 7
+    0b01111111, // 8
+    0b01101111, // 9
+    0b00000000, // : (unused)
+    0b00000000, // ; (unused)
+    0b01011000, // <
+    0b01001000, // =
+    0b01001100, // >
+    0b01010011, // ?
+    0b11111111, // @ (all segments)
+    0b01110111, // A
+    0b01111111, // B
+    0b00111001, // C
+    0b00111111, // D
+    0b01111001, // E
+    0b01110001, // F
+    0b00111101, // G
+    0b01110110, // H
+    0b10001001, // I (position 0 only)
+    0b00001110, // J
+    0b01110101, // K
+    0b00111000, // L
+    0b10110111, // M (position 0 only)
+    0b00110111, // N
+    0b00111111, // O
+    0b01110011, // P
+    0b01100111, // Q
+    0b11110111, // R (position 1 only)
+    0b01101101, // S
+    0b10000001, // T (position 0 only)
+    0b00111110, // U
+    0b00111110, // V
+    0b10111110, // W (position 0 only)
+    0b01111110, // X
+    0b01101110, // Y
+    0b00011011, // Z
+    0b00111001, // [
+    0b00100100, // backslash
+    0b00001111, // ]
+    0b00100011, // ^
+    0b00001000, // _
+    0b00000010, // `
+    0b01011111, // a
+    0b01111100, // b
+    0b01011000, // c
+    0b01011110, // d
+    0b01111011, // e
+    0b01110001, // f
+    0b01101111, // g
+    0b01110100, // h
+    0b00010000, // i
+    0b01000010, // j
+    0b01110101, // k
+    0b00110000, // l
+    0b10110111, // m (position 0 only)
+    0b01010100, // n
+    0b01011100, // o
+    0b01110011, // p
+    0b01100111, // q
+    0b01010000, // r
+    0b01101101, // s
+    0b01111000, // t
+    0b01100010, // u (upper half)
+    0b00011100, // v (lower half)
+    0b10111110, // w (position 0 only)
+    0b01111110, // x
+    0b01101110, // y
+    0b00011011, // z
+    0b00010110, // { (il ligature)
+    0b00110110, // | (ll ligature)
+    0b00110100, // } (li ligature)
+    0b00000001, // ~
+};
+
+// Segment map: each position has 8 bytes, each byte encodes
+// COM[7:6] (2 bits) + SEG[5:0] (6 bits) for one of the 7 segments.
+// COM > 2 means no segment exists for that position (skip).
+static const uint64_t Segment_Map[] = {
+    0x4e4f0e8e8f8d4d0dULL, // Position 0, day-of-week
+    0xc8c4c4c8b4b4b0bULL,  // Position 1, day-of-week
+    0xc049c00a49890949ULL, // Position 2, day-of-month
+    0xc048088886874707ULL, // Position 3, day-of-month
+    0xc053921252139352ULL, // Position 4, clock hours
+    0xc054511415559594ULL, // Position 5, clock hours
+    0xc057965616179716ULL, // Position 6, clock minutes
+    0xc041804000018a81ULL, // Position 7, clock minutes
+    0xc043420203048382ULL, // Position 8, clock seconds
+    0xc045440506468584ULL, // Position 9, clock seconds
+};
+
+// Indicator segments: (COM, SEG) pairs from Sensor-Watch.
+static const struct { uint8_t com; uint8_t seg; } IndicatorMap[] = {
+    {0, 17},  // SIGNAL
+    {0, 16},  // BELL
+    {2, 17},  // PM
+    {2, 16},  // 24H
+    {1, 10},  // LAP
+};
+
+// COM RAM register pairs for 1/3 duty (COM0-COM2 only).
 static volatile uint32_t *comRegL[3] = {
     &LCD->com0_l, &LCD->com1_l, &LCD->com2_l,
 };
-static volatile uint32_t *comRegH[3] = {
-    &LCD->com0_h, &LCD->com1_h, &LCD->com2_h,
-};
+
+#define LCD_POLL_LIMIT  100000U
+
+// --- Pixel-level operations ---
+
+void lcdSetPixel(uint8_t com, uint8_t seg) {
+    if (com > 2) return;
+    if (seg < 32)
+        *comRegL[com] |= (1U << seg);
+    else
+        LCD->com0_h |= (1U << (seg - 32));  // simplified: all high words share
+}
+
+void lcdClearPixel(uint8_t com, uint8_t seg) {
+    if (com > 2) return;
+    if (seg < 32)
+        *comRegL[com] &= ~(1U << seg);
+    else
+        LCD->com0_h &= ~(1U << (seg - 32));
+}
+
+// --- Character display ---
+
+void lcdDisplayChar(char c, uint8_t position) {
+    if (position >= LCD_NUM_POSITIONS) return;
+
+    // Position 0 has a funky ninth segment — clear it first.
+    if (position == 0) lcdClearPixel(0, 15);
+
+    // Clamp to printable range.
+    if (c < 0x20 || c > 0x7E) c = ' ';
+
+    uint64_t segmap = Segment_Map[position];
+    uint8_t segdata = Character_Set[(uint8_t)c - 0x20];
+
+    for (int i = 0; i < 8; i++) {
+        uint8_t com = (segmap & 0xFF) >> 6;
+        if (com > 2) {
+            segmap >>= 8;
+            segdata >>= 1;
+            continue;
+        }
+        uint8_t seg = segmap & 0x3F;
+        if (segdata & 1)
+            lcdSetPixel(com, seg);
+        else
+            lcdClearPixel(com, seg);
+        segmap >>= 8;
+        segdata >>= 1;
+    }
+
+    // Special: position 0/1 extra segments for B, D, @.
+    if (position == 0 && (c == 'B' || c == 'D' || c == '@'))
+        lcdSetPixel(0, 15);
+}
+
+void lcdDisplayString(const char *str, uint8_t position) {
+    uint8_t i = 0;
+    while (str[i] && position + i < LCD_NUM_POSITIONS) {
+        lcdDisplayChar(str[i], position + i);
+        i++;
+    }
+}
+
+// --- Colon and indicators ---
+
+void lcdSetColon(void)     { lcdSetPixel(1, 16); }
+void lcdClearColon(void)   { lcdClearPixel(1, 16); }
+
+void lcdSetIndicator(lcd_indicator_t ind) {
+    if (ind > LCD_INDICATOR_LAP) return;
+    lcdSetPixel(IndicatorMap[ind].com, IndicatorMap[ind].seg);
+}
+
+void lcdClearIndicator(lcd_indicator_t ind) {
+    if (ind > LCD_INDICATOR_LAP) return;
+    lcdClearPixel(IndicatorMap[ind].com, IndicatorMap[ind].seg);
+}
+
+void lcdClearAllIndicators(void) {
+    for (uint8_t i = 0; i <= LCD_INDICATOR_LAP; i++)
+        lcdClearPixel(IndicatorMap[i].com, IndicatorMap[i].seg);
+}
+
+// --- LCD controller init and management ---
 
 uint8_t LCD_Init(void) {
-    // 1. Route LSI1 to RTCCLK (BDCR.RTCSEL=10) so LCDCLK is driven.
-    //    BDCR writes require DBP=1 in PWR_CR1 (RM0434 §6.4.32, §6.6.1).
+    // 1. Route LSI1 to RTCCLK (BDCR.RTCSEL=10) for LCDCLK.
     PWR->cr1 |= PWR_CR1_DBP;
-    // Clear RTCSEL then set to LSI1 (bits 9:8).
     RCC->bdcr = (RCC->bdcr & ~(3U << 8)) | RCC_BDCR_RTCSEL_LSI1;
 
     // 2. Enable LCD APB clock and configure GPIO pins.
     enableRCC(LCD_PER);
     LCD_GPIO_Init();
 
-    // 3. Configure LCD_CR while LCD is disabled (VSEL/MUX_SEG/BIAS/DUTY/BUFEN
-    //    are write-protected when ENS=1). VSEL=0 → internal step-up converter
-    //    (PB2/VLCD + Cext1, REFERENCE.md §2). MUX_SEG=0 → SEG[42:40] for
-    //    VFQFPN68 1/3 duty (Table 117). BUFEN=1 for stable intermediate voltages.
+    // 3. Configure LCD_CR (write-protected when ENS=1).
     LCD->cr = LCD_CR_DUTY_1_3 | LCD_CR_BIAS_1_3 | LCD_CR_BUFEN;
 
-    // 4. Configure LCD_FCR: frame rate, contrast, high drive.
-    //    PS=4, DIV=6 → fframe ≈ 31 Hz at 1/3 duty with LCDCLK=32kHz (Table 115).
-    //    CC=VLCD3 (midrange contrast — adjust on hardware). HD=1 + PON=1 for
-    //    permanent high drive (buffered mode ignores HD/PON, but set per RM).
+    // 4. Frame rate ~31 Hz, contrast VLCD3, high drive.
     LCD->fcr = LCD_FCR_PS_4 | LCD_FCR_DIV_6 | LCD_FCR_CC_VLCD3 |
                LCD_FCR_HD | LCD_FCR_PON_1;
 
-    // 5. Wait for FCR synchronization (FCRSF clears on FCR write, sets when
-    //    the new value reaches the LCDCLK domain).
+    // 5. Wait for FCR sync.
     uint32_t timeout = LCD_POLL_LIMIT;
     while (!(LCD->sr & LCD_SR_FCRSF)) {
         if (--timeout == 0U) return LCD_CFG_ERR;
     }
 
-    // 6. Enable the LCD controller. RDY is set when the step-up converter
-    //    has stabilized (RM0434 §22.3.5).
+    // 6. Enable LCD, wait for step-up converter RDY.
     LCD->cr |= LCD_CR_LCDEN;
-
     timeout = LCD_POLL_LIMIT;
     while (!(LCD->sr & LCD_SR_RDY)) {
         if (--timeout == 0U) return LCD_CFG_ERR;
     }
 
-    // 7. Clear all RAM and trigger the first display update.
+    // 7. Clear all RAM and trigger first update.
     lcdDisplayClear();
-
     return CORE_OK;
 }
 
 void lcdDisable(void) {
     LCD->cr &= ~LCD_CR_LCDEN;
-    // ENS clears at the end of the last displayed frame (RM0434 §22.6.3).
     uint32_t timeout = LCD_POLL_LIMIT;
     while (LCD->sr & LCD_SR_ENS) {
         if (--timeout == 0U) break;
     }
-    // Lock backup domain again.
     PWR->cr1 &= ~PWR_CR1_DBP;
 }
 
@@ -89,21 +282,23 @@ lcd_status_t lcdGetStatus(void) {
 uint8_t lcdDisplayWrite(uint8_t com, uint32_t segLow, uint32_t segHigh) {
     if (com > 2) return LCD_CFG_ERR;
     *comRegL[com] = segLow;
-    // High word: only bits 11:0 are SEG[43:32] (§22.6.6).
-    *comRegH[com] = segHigh & 0x0FFFU;
+    // High word: only bits 11:0 are SEG[43:32].
+    if (com == 0) LCD->com0_h = segHigh & 0x0FFFU;
+    else if (com == 1) LCD->com1_h = segHigh & 0x0FFFU;
+    else LCD->com2_h = segHigh & 0x0FFFU;
     return CORE_OK;
 }
 
 void lcdDisplayClear(void) {
     for (uint8_t i = 0; i < 3; i++) {
         *comRegL[i] = 0;
-        *comRegH[i] = 0;
     }
+    LCD->com0_h = 0;
+    LCD->com1_h = 0;
+    LCD->com2_h = 0;
     lcdDisplayUpdate();
 }
 
 void lcdDisplayUpdate(void) {
-    // Set UDR to request transfer from LCD_RAM to display buffer.
-    // The update happens at the start of the next frame (§22.3.6).
     LCD->sr = LCD_SR_UDR;
 }

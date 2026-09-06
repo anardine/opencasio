@@ -76,7 +76,7 @@ Hardware gate:
 ### Phase 5: LCD Driver Completion
 - [x] Implement `lcdDisable`, `lcdGetStatus`, `lcdDisplayWrite`, `lcdDisplayUpdate` in `src/driver/lcd.c`.
 - [x] Configure LCD controller (1/3 duty/bias, internal step-up).
-- [ ] Add rendering functions based on the glass truth table from `REFERENCE.md`.
+- [x] Add rendering functions based on the glass truth table from `REFERENCE.md`.
 
 ### Phase 6: Buzzer/LED Control
 - [x] Implement LED toggle function (`PB13`).
