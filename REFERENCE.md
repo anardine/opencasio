@@ -253,6 +253,38 @@ VREF ; C39.1 C40.1 U6.13                          // VREF+
 $END
 ```
 
+## 8. Bring-up findings (on-silicon, 2026-09-12 session)
+
+1. **Boot-ROM (EMPTY flag)**: a virgin STM32WB55 boots the system bootloader
+   even after flash programming — `FLASH_ACR.EMPTY` is only re-evaluated at
+   option-byte load. A power-on reset (or software write of EMPTY=0) is
+   required once after flashing a virgin device.
+2. **Sensor rails clamp the I2C bus**: with TEMP_EN/MAG_EN low, the unpowered
+   BME280 + MMC5603NJ sink both SCL and SDA to GND hard enough to defeat the
+   4.7 kΩ pull-ups *and* the MCU's ~40 kΩ internal pull-ups (measured: bus
+   pins read LOW with rails off, HIGH with rails on). Any I2C access requires
+   the rails on. §7.3 resolved: the load-switch EN inputs are active-HIGH.
+   Consequence: the "rails always off when idle" plan needs a hardware fix
+   (bus isolation / separate pull-up domain) before it can work.
+3. **BME280 power-up**: probing earlier than ~20 ms after rail enable NACKs;
+   20 ms settle works (datasheet t_boot ≈ 2 ms + rail rise). §7.3's rise-time
+   guess replaced.
+4. **BME280 address**: SDO strap confirmed — the device ACKs 0x76, not 0x77
+   (§7.5 resolved). Forced-mode conversion does not run in the current driver
+   even though the 0x25 trigger write ACKs (data registers stay at reset
+   defaults 0x80000/0x8000) — open, to chase in the sensor phase.
+5. **MMC5603NJ CTRL0 (0x1B) is write-only**: reads return 0x60 on silicon.
+   The driver must shadow it in software (a read-modify-write set Auto_st_en
+   and wedged the device in self-test, Status1 stuck at 0x50). Even with the
+   shadow fix, Status1 polls never show Meas_m_done — open, to debug in the
+   sensor phase with the on-demand flow.
+6. **VLCD charge-pump coupling**: the internal LCD step-up radiates ~90 kHz
+   into long probe wires; the fx2 LA shows threshold chatter when the bus is
+   clamped near its threshold. Instrument artifact, not bus activity.
+7. **ST-Link notes**: the clone (V2J17S4) needs OpenOCD HLA mode (`stlink-hla`)
+   — direct SWD requires firmware ≥ V2J24. PlatformIO's tool-stlink is v1.4.0
+   (2017) and cannot handle the STM32WB55; flash via OpenOCD instead.
+
 ## 6. Sensor addresses & quick facts
 
 All confirmed against the device datasheets (`docs/rv3129_appman.txt`, `docs/mmc5603nj_ds.txt`).
