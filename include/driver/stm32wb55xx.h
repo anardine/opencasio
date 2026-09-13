@@ -26,7 +26,7 @@
 
 //System Wide Configs and RCC control
 #define RCC_BASE_ADDR                   (AHB4_BASE_ADDR + 0x0000UL)
-#define PWR_BASE_ADDR                    (AHB4_BASE_ADDR + 0x1000UL)
+#define PWR_BASE_ADDR                    (AHB4_BASE_ADDR + 0x0400UL) // RM0434 Table 1: PWR in AHB4 at 0x5800 0400
 #define SYSCFG_BASE_ADDR                (APB2_BASE_ADDR + 0x0000UL)
 #define EXTI_BASE_ADDR                  (AHB4_BASE_ADDR + 0X0800UL)
 
