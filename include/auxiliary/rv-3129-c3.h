@@ -21,6 +21,9 @@
 #define RTC_REG_CONTROL_INT_FLAG  0x02U
 #define RTC_REG_CONTROL_STATUS    0x03U
 #define RTC_REG_CONTROL_RESET     0x04U
+// Control_STATUS bit positions (§3.2.4). VLF (bit 7): voltage-low flag —
+// set at power-on / after battery change; time and date are invalid then.
+#define RTC_STATUS_VLF            (1U << 7)
 
 // Clock page (auto-increment 08→0E)
 #define RTC_REG_SECONDS           0x08U
@@ -107,7 +110,12 @@ uint8_t alarmSet(I2C_Handle_t *pToI2CHandle, const rtc_alarm_t *a);
 // clock, auto-reload, and TIE interrupt. timerSet loads the 16-bit countdown
 // value (1-65536; 0 stops). timerClear clears the TF flag.
 // Returns CORE_OK, I2C error, or RTC_TIMER_CFG_ERR.
+// timerStop clears TE (1 Hz config and TAR preserved) — used to pause the
+// tick engine. Returns CORE_OK or an I2C error.
 uint8_t timerInit(I2C_Handle_t *pToI2CHandle);
+uint8_t timerStop(I2C_Handle_t *pToI2CHandle);
+
+// Load 16-bit countdown value. n=1..65536 valid; n=0 stops the timer (§4.4).
 uint8_t timerClear(I2C_Handle_t *pToI2CHandle);
 uint8_t timerSet(I2C_Handle_t *pToI2CHandle, uint16_t countdown);
 

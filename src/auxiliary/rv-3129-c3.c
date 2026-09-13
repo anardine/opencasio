@@ -144,3 +144,13 @@ uint8_t timerSet(I2C_Handle_t *pToI2CHandle, uint16_t countdown) {
     buf[1] = (uint8_t)((countdown >> 8) & 0xFFU);
     return writeToRTC(pToI2CHandle, RTC_REG_TIMER_LOW, buf, 2);
 }
+
+// Stop the countdown timer: clear TE in Control_1 (1 Hz config and TAR
+// preserved; TIE stays set — TF no longer generated while TE=0).
+uint8_t timerStop(I2C_Handle_t *pToI2CHandle) {
+    uint8_t ctrl1;
+    uint8_t status = readFromRTC(pToI2CHandle, RTC_REG_CONTROL_1, &ctrl1, 1);
+    if (status != CORE_OK) return status;
+    ctrl1 &= ~RTC_CTRL1_TE;
+    return writeToRTC(pToI2CHandle, RTC_REG_CONTROL_1, &ctrl1, 1);
+}
