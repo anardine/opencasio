@@ -59,7 +59,8 @@ void lcdClearPixel(uint8_t com, uint8_t seg);
 // segLow = SEG[31:0], segHigh = SEG[43:32] (only bits 11:0 used).
 uint8_t lcdDisplayWrite(uint8_t com, uint32_t segLow, uint32_t segHigh);
 
-// Clear all LCD RAM (all segments off) and trigger update.
+// Clear all LCD RAM (all segments off). Call lcdDisplayUpdate() after
+// rendering the complete frame.
 void lcdDisplayClear(void);
 
 // Trigger UDR: transfers LCD_RAM to display buffer at next frame.

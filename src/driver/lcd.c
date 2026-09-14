@@ -290,6 +290,7 @@ uint8_t LCD_Init(void) {
 
     // 7. Clear all RAM and trigger first update.
     lcdDisplayClear();
+    lcdDisplayUpdate();
     return CORE_OK;
 }
 
@@ -330,7 +331,6 @@ void lcdDisplayClear(void) {
     LCD->com0_h = 0;
     LCD->com1_h = 0;
     LCD->com2_h = 0;
-    lcdDisplayUpdate();
 }
 
 void lcdDisplayUpdate(void) {

@@ -65,7 +65,7 @@ bme280_data_t bmeData;
 volatile uint8_t bmeInitStatus, bmeMeasStatus;
 volatile uint8_t lcdInitStatus;
 volatile uint8_t magInitStatus, magMeasStatus;
-static volatile uint8_t editWday, editDay;  // date edit shadows (weekday 1-7, day 1-31)
+static volatile uint8_t editMonth = 1, editDay = 1;  // date edit shadows (month 1-12, day 1-31)
 
 // Edit-mode state (declared early: the INT handler blinks these fields).
 static rtc_time_t editTime;
@@ -75,10 +75,16 @@ static rtc_alarm_t editAlarm;
 static uint8_t bme280Addr;
 
 // --- Event flags set by EXTI ISR callbacks (consumed by the superloop) ---
-volatile uint8_t btnLedFlag;    // PC13 rising
+#define BUTTON_LED_MASK   (1U << 0)
+#define BUTTON_MODE_MASK  (1U << 1)
+#define BUTTON_ALARM_MASK (1U << 2)
+
+volatile uint8_t buttonEventFlags;
+static volatile uint8_t buttonHeldFlags;
 static void showAlarm(void);
-volatile uint8_t btnModeFlag;   // PC3 rising
-volatile uint8_t btnAlarmFlag;  // PE4 rising
+static void handleModeButton(void);
+static void handleAlarmButton(void);
+static void handleLedButton(void);
 volatile uint8_t rtcIntFlag;    // PA0 falling (timer tick / alarm fire)
 
 // --- UI state machine ---
@@ -106,14 +112,12 @@ static volatile uint8_t alarmHours = 6, alarmMinutes = 30;
 static volatile uint8_t alarmArmed;
 
 // --- Edit-mode state ---
-// TIME-SET fields, classic order: seconds, hours, minutes, weekday, day.
-// (Month/year are not shown on the F-91W glass and stay RTC-side.)
-enum { EDF_SEC = 0, EDF_HOUR, EDF_MIN, EDF_WDAY, EDF_DAY, EDF_TIME_COUNT };
+// TIME-SET fields sequence: seconds, minutes, hours, day, month.
+enum { EDF_SEC = 0, EDF_MIN, EDF_HOUR, EDF_DAY, EDF_MONTH, EDF_TIME_COUNT };
 // ALARM-SET fields: hours, minutes.
 enum { EDA_HOUR = 0, EDF_ALARM_HOUR = 0, EDF_ALARM_MIN, EDF_ALARM_COUNT };
 static volatile uint8_t editField;
-static volatile uint8_t editBlinkOn;   // toggled by 1 Hz ticks while editing
-static volatile uint8_t timeRefreshCounter;  // 1 Hz RTC tick, but TIME-mode LCD refreshes every 10 s
+static volatile uint8_t editBlinkOn = 1;   // toggled by 1 Hz ticks while editing
 
 // Alarm edit shadow values.
 static volatile uint8_t alarmSetHours, alarmSetMinutes;
@@ -121,9 +125,9 @@ static volatile uint8_t alarmSetHours, alarmSetMinutes;
 // EXTI ISR callback — overrides the weak default in gpio.c.
 void GPIO_IRQCallback(uint8_t pinNumber) {
     switch (pinNumber) {
-        case 13: btnLedFlag   = 1; break;  // PC13 = BTN_LED
-        case 3:  btnModeFlag  = 1; break;  // PC3  = BTN_MODE
-        case 4:  btnAlarmFlag = 1; break;  // PE4  = BTN_ALARM
+        case 13: buttonEventFlags |= BUTTON_LED_MASK; break;   // PC13 = BTN_LED
+        case 3:  buttonEventFlags |= BUTTON_MODE_MASK; break;  // PC3  = BTN_MODE
+        case 4:  buttonEventFlags |= BUTTON_ALARM_MASK; break; // PE4  = BTN_ALARM
         case 0:  rtcIntFlag   = 1; break;  // PA0  = RTC_INT
         default: break;
     }
@@ -147,8 +151,8 @@ static void displayTimeOnLcd(void) {
 
 static void displayDateOnLcd(void) {
     char buf[3];
-    buf[0] = '0' + (rtcDate.weekday / 10);
-    buf[1] = '0' + (rtcDate.weekday % 10);
+    buf[0] = '0' + (rtcDate.month / 10);
+    buf[1] = '0' + (rtcDate.month % 10);
     buf[2] = 0;
     lcdDisplayString(buf, 0);
     buf[0] = '0' + (rtcDate.day / 10);
@@ -169,8 +173,8 @@ static void displayClock(void) {
 
 static void displayTimeSetScreen(void) {
     char dateBuf[5];
-    dateBuf[0] = '0' + (editWday / 10);
-    dateBuf[1] = '0' + (editWday % 10);
+    dateBuf[0] = '0' + (editMonth / 10);
+    dateBuf[1] = '0' + (editMonth % 10);
     dateBuf[2] = '0' + (editDay / 10);
     dateBuf[3] = '0' + (editDay % 10);
     dateBuf[4] = 0;
@@ -185,15 +189,32 @@ static void displayTimeSetScreen(void) {
     timeBuf[6] = 0;
 
     if (!editBlinkOn) {
-        if (editField == EDF_WDAY) dateBuf[0] = dateBuf[1] = ' ';
-        if (editField == EDF_DAY)  dateBuf[2] = dateBuf[3] = ' ';
-        if (editField == EDF_HOUR) timeBuf[0] = timeBuf[1] = ' ';
-        if (editField == EDF_MIN)  timeBuf[2] = timeBuf[3] = ' ';
-        if (editField == EDF_SEC)  timeBuf[4] = timeBuf[5] = ' ';
+        if (editField == EDF_MONTH) dateBuf[0] = dateBuf[1] = ' ';
+        if (editField == EDF_DAY)   dateBuf[2] = dateBuf[3] = ' ';
+        if (editField == EDF_HOUR)  timeBuf[0] = timeBuf[1] = ' ';
+        if (editField == EDF_MIN)   timeBuf[2] = timeBuf[3] = ' ';
+        if (editField == EDF_SEC)   timeBuf[4] = timeBuf[5] = ' ';
     }
 
     lcdDisplayString(dateBuf, 0);
     lcdDisplayString(timeBuf, 4);
+    if (editBlinkOn) lcdSetColon(); else lcdClearColon();
+    lcdDisplayUpdate();
+}
+
+static void displayAlarmSetScreen(void) {
+    char buf[5];
+    buf[0] = '0' + (alarmSetHours / 10);
+    buf[1] = '0' + (alarmSetHours % 10);
+    buf[2] = '0' + (alarmSetMinutes / 10);
+    buf[3] = '0' + (alarmSetMinutes % 10);
+    buf[4] = 0;
+    if (!editBlinkOn) {
+        if (editField == EDF_ALARM_HOUR)      { buf[0] = buf[1] = ' '; }
+        else /* EDF_ALARM_MIN */              { buf[2] = buf[3] = ' '; }
+    }
+    lcdDisplayString(buf, 4);
+    lcdSetIndicator(LCD_INDICATOR_BELL);
     if (editBlinkOn) lcdSetColon(); else lcdClearColon();
     lcdDisplayUpdate();
 }
@@ -222,13 +243,7 @@ static void handleTimerTick(void) {
         editBlinkOn = !editBlinkOn;
 
     if (uiMode == MODE_TIME) {
-        timeRefreshCounter++;
-        if (timeRefreshCounter >= 10) {
-            displayClock();
-            timeRefreshCounter = 0;
-        }
-    } else {
-        timeRefreshCounter = 0;
+        displayClock();
     }
 
     if (stwRunning) {
@@ -280,28 +295,10 @@ static void handleRtcInterrupt(void) {
     uint8_t clearVal = 0xFFU & ~(RTC_FLAG_AF | RTC_FLAG_TF);
     writeToRTC(&pToI2C, RTC_REG_CONTROL_INT_FLAG, &clearVal, 1);
 
-    // TIME mode refreshes the clock only every 10 s; edit modes redraw with
-    // the current blink phase; other modes own their display.
-    if (uiMode == MODE_TIME) {
-        // displayClock() already runs from the 10 s tick in handleTimerTick();
-        // avoid a 1 Hz redraw here to save battery on the normal clock screen.
-    } else if (uiMode == MODE_TIME_SET) {
+    if (uiMode == MODE_TIME_SET) {
         displayTimeSetScreen();
     } else if (uiMode == MODE_ALARM_SET) {
-        char buf[5];
-        buf[0] = '0' + (alarmSetHours / 10);
-        buf[1] = '0' + (alarmSetHours % 10);
-        buf[2] = '0' + (alarmSetMinutes / 10);
-        buf[3] = '0' + (alarmSetMinutes % 10);
-        buf[4] = 0;
-        if (!editBlinkOn) {
-            if (editField == EDF_ALARM_HOUR)      { buf[0] = buf[1] = ' '; }
-            else /* EDF_ALARM_MIN */              { buf[2] = buf[3] = ' '; }
-        }
-        lcdDisplayString(buf, 4);
-        lcdSetIndicator(LCD_INDICATOR_BELL);
-        if (editBlinkOn) lcdSetColon(); else lcdClearColon();
-        lcdDisplayUpdate();
+        displayAlarmSetScreen();
     }
 }
 
@@ -322,35 +319,89 @@ static void tickStopIfIdle(void) {
         timerStop(&pToI2C);
 }
 
+static void buttonDebounceDelay(void) {
+    for (volatile uint32_t delay = 0; delay < 320000; delay++)
+        __asm volatile ("nop");
+}
+
+static uint8_t buttonInputsHigh(void) {
+    uint8_t levels = 0;
+    if (GPIOC->idr & (1U << 13)) levels |= BUTTON_LED_MASK;
+    if (GPIOC->idr & (1U << 3))  levels |= BUTTON_MODE_MASK;
+    if (GPIOE->idr & (1U << 4))  levels |= BUTTON_ALARM_MASK;
+    return levels;
+}
+
+static void handleButtonEvents(void) {
+    __asm volatile ("cpsid i" ::: "memory");
+    uint8_t pending = buttonEventFlags;
+    buttonEventFlags &= (uint8_t)~pending;
+    __asm volatile ("cpsie i" ::: "memory");
+
+    if (pending == 0) return;
+
+    buttonDebounceDelay();
+
+    uint8_t levels = buttonInputsHigh();
+    uint8_t pressed = pending & levels;
+    uint8_t released = pending & (uint8_t)~levels;
+
+    buttonHeldFlags &= (uint8_t)~released;
+
+    if (pressed & BUTTON_MODE_MASK) {
+        if (!(buttonHeldFlags & BUTTON_MODE_MASK)) {
+            buttonHeldFlags |= BUTTON_MODE_MASK;
+            handleModeButton();
+        }
+    }
+    if (pressed & BUTTON_ALARM_MASK) {
+        if (!(buttonHeldFlags & BUTTON_ALARM_MASK)) {
+            buttonHeldFlags |= BUTTON_ALARM_MASK;
+            handleAlarmButton();
+        }
+    }
+    if (pressed & BUTTON_LED_MASK) {
+        if (!(buttonHeldFlags & BUTTON_LED_MASK)) {
+            buttonHeldFlags |= BUTTON_LED_MASK;
+            handleLedButton();
+        }
+    }
+}
+
 // --- Edit modes ---------------------------------------------------------------
 
 // TIME-SET: blinking seconds field, MODE = next field, LED = increment,
 // ALARM = exit + save. Classic F-91W set order (sec → hour → min → …).
 static void enterTimeSet(void) {
     editTime = rtcTime;
-    editWday = rtcDate.weekday;
-    editDay  = rtcDate.day;
+    editMonth = rtcDate.month;
+    if (editMonth == 0 || editMonth > 12) editMonth = 1;
+    editDay = rtcDate.day;
+    if (editDay == 0 || editDay > 31) editDay = 1;
     editField = EDF_SEC;
     editBlinkOn = 1;
     uiMode = MODE_TIME_SET;
     tickStart();
     displayTimeSetScreen();
 }
+
 static void incrementTimeField(void) {
     switch (editField) {
-        case EDF_SEC:  editTime.seconds = (editTime.seconds + 1) % 60; break;
-        case EDF_HOUR: editTime.hours   = (editTime.hours + 1) % 24;   break;
-        case EDF_MIN:  editTime.minutes = (editTime.minutes + 1) % 60; break;
-        case EDF_WDAY: editWday = editWday % 7 + 1; break; // RTC weekday 1-7
-        case EDF_DAY:  editDay  = editDay  % 31 + 1;       break;
+        case EDF_SEC:   editTime.seconds = (editTime.seconds + 1) % 60; break;
+        case EDF_MIN:   editTime.minutes = (editTime.minutes + 1) % 60; break;
+        case EDF_HOUR:  editTime.hours   = (editTime.hours + 1) % 24;   break;
+        case EDF_DAY:   editDay          = (editDay % 31) + 1;          break;
+        case EDF_MONTH: editMonth        = (editMonth % 12) + 1;        break;
         default: break;
     }
+    editBlinkOn = 1;
+    displayTimeSetScreen();
     buzzerBeep(10);
 }
 
 static void exitTimeSet(void) {
     setTime(&pToI2C, &editTime);
-    rtcDate.weekday = editWday;
+    rtcDate.month = editMonth;
     rtcDate.day = editDay;
     setDate(&pToI2C, &rtcDate);
     uiMode = MODE_TIME;
@@ -366,6 +417,7 @@ static void enterAlarmSet(void) {
     editBlinkOn = 1;
     uiMode = MODE_ALARM_SET;
     tickStart();
+    displayAlarmSetScreen();
 }
 
 static void incrementAlarmField(void) {
@@ -373,6 +425,8 @@ static void incrementAlarmField(void) {
         alarmSetHours = (alarmSetHours + 1) % 24;
     else
         alarmSetMinutes = (alarmSetMinutes + 1) % 60;
+    editBlinkOn = 1;
+    displayAlarmSetScreen();
     buzzerBeep(10);
 }
 
@@ -426,7 +480,6 @@ static void enterMode(ui_mode_t m) {
             lcdDisplayClear();
             lcdClearAllIndicators();
             if (alarmArmed) lcdSetIndicator(LCD_INDICATOR_BELL);
-            timeRefreshCounter = 0;
             tickStart();   // 1 Hz ticks keep the TIME-mode clock ticking
             displayClock();
             break;
@@ -545,13 +598,17 @@ static void cycleMode(void) {
 
 static void handleModeButton(void) {
     if (uiMode == MODE_TIME_SET) {
-        // next edit field (MODE cycles fields inside TIME-SET)
+        // next edit field (sec -> min -> hour -> day -> month -> sec)
         editField = (editField + 1) % EDF_TIME_COUNT;
+        editBlinkOn = 1;
+        displayTimeSetScreen();
         buzzerBeep(10);
         return;
     }
     if (uiMode == MODE_ALARM_SET) {
         editField = (editField + 1) % 2;
+        editBlinkOn = 1;
+        displayAlarmSetScreen();
         buzzerBeep(10);
         return;
     }
@@ -688,27 +745,31 @@ int main() {
       (void)bme280Addr;
 
 
-      // A full RTC power cycle sets PON. Do not render undefined clock RAM;
-      // clear the flag, seed editable defaults, and show TIME-SET immediately.
+      // Reset / clear any stale RTC status flags and INT flags
       uint8_t rtcStatus = 0;
-      uint8_t rtcPoweredOn =
-          readFromRTC(&pToI2C, RTC_REG_CONTROL_STATUS, &rtcStatus, 1) == CORE_OK &&
-          (rtcStatus & RTC_STATUS_PON);
-      if (rtcPoweredOn) {
-            uint8_t clearPon = 0xFFU & ~RTC_STATUS_PON;
-            writeToRTC(&pToI2C, RTC_REG_CONTROL_STATUS, &clearPon, 1);
+      readFromRTC(&pToI2C, RTC_REG_CONTROL_STATUS, &rtcStatus, 1);
+      uint8_t clearPon = 0xFFU & ~RTC_STATUS_PON;
+      writeToRTC(&pToI2C, RTC_REG_CONTROL_STATUS, &clearPon, 1);
+      uint8_t clearFlags = 0x00U;
+      writeToRTC(&pToI2C, RTC_REG_CONTROL_INT_FLAG, &clearFlags, 1);
+      EXTI->pr1 = 1U << 0;
+
+      // Read current time/date or seed defaults
+      rtcReadStatus = getTime(&pToI2C, &rtcTime);
+      if (rtcReadStatus != CORE_OK || (rtcStatus & RTC_STATUS_PON) ||
+          rtcTime.seconds > 59 || rtcTime.minutes > 59 || rtcTime.hours > 23) {
             rtcTime = (rtc_time_t){ .seconds = 0, .minutes = 0, .hours = 0 };
-            rtcDate = (rtc_date_t){ .day = 1, .weekday = 1, .month = 1, .year = 0 };
-            enterTimeSet();
-      } else {
-            // A transient NACK after rail churn must not leave a dead display.
-            for (uint8_t attempt = 0; attempt < 10; attempt++) {
-                  displayClock();
-                  if (rtcReadStatus == CORE_OK) break;
-                  railSettleDelay();
-            }
-            tickStart();
+            setTime(&pToI2C, &rtcTime);
       }
+      rtcReadStatus = getDate(&pToI2C, &rtcDate);
+      if (rtcReadStatus != CORE_OK || (rtcStatus & RTC_STATUS_PON) ||
+          rtcDate.day == 0 || rtcDate.day > 31 || rtcDate.month == 0 || rtcDate.month > 12) {
+            rtcDate = (rtc_date_t){ .day = 1, .weekday = 1, .month = 1, .year = 0 };
+            setDate(&pToI2C, &rtcDate);
+      }
+
+      // Start blinking in TIME-SET mode immediately upon battery insertion / boot
+      enterTimeSet();
 
       // Bring-up confirmation.
       ledOn();
@@ -719,19 +780,8 @@ int main() {
       while (1) {
             __asm volatile ("wfi");
 
-            if (btnModeFlag) {
-                  btnModeFlag = 0;
-                  handleModeButton();
-            }
-            if (btnAlarmFlag) {
-                  btnAlarmFlag = 0;
-                  handleAlarmButton();
-            }
-            if (btnLedFlag) {
-                  btnLedFlag = 0;
-                  handleLedButton();
-            }
-            if (rtcIntFlag) {
+            handleButtonEvents();
+            if (rtcIntFlag || !(GPIOA->idr & (1U << 0))) {
                   rtcIntFlag = 0;
                   handleRtcInterrupt();
             }

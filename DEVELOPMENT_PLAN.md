@@ -12,13 +12,13 @@ Develop robust, low-power firmware for a wristwatch replacement board, integrati
 
 ## Development Phases
 
-1. **GPIO bring-up — implemented:** board outputs, buttons, RTC interrupt, and EXTI are configured; software-triggered EXTI paths work on target. Physical in-case button checks remain.
+1. **GPIO bring-up — implemented, debounce pending verification:** board outputs, buttons, RTC interrupt, and EXTI are configured; software-triggered EXTI paths work on target. Source now captures both button edges and debounces/latches press/release events, but the change has not yet been built or tested on hardware. Physical in-case button checks remain.
 2. **I2C1 bring-up — partially accepted:** RTC 0x56 and BME280 0x76 ACK. The MMC5603NJ at 0x30 is absent from the final full-address scan.
 3. **RTC integration — implemented and verified:** binary/BCD time and date, PON cold-start handling, alarm, and recurring 1 Hz timer interrupts.
 4. **Sensor integration — BME accepted, MAG blocked:** BME280 measurements are plausible; the magnetometer driver is implemented but cannot pass presence detection on the connected board.
-5. **LCD driver — implemented and physically verified:** F-91W glass mapping and indicators match the deterministic target pattern with no unknown RAM cells.
+5. **LCD driver — mapping verified, mode-frame fix pending verification:** F-91W glass mapping and indicators match the deterministic target pattern with no unknown RAM cells. Source now avoids submitting an empty frame before mode contents are rendered; this change has not yet been built or tested on hardware.
 6. **Buzzer/LED — implemented:** GPIO output paths run; final brightness, audibility, and case fit remain standalone checks.
-7. **Superloop/UI — implemented and target-verified:** EXTI-driven modes, edit flows, alarm state, stopwatch, and countdown behavior operate through the RTC tick engine.
+7. **Superloop/UI — prior behavior target-verified; input/render changes pending verification:** EXTI-driven modes, edit flows, alarm state, stopwatch, and countdown behavior were verified through the RTC tick engine. The current source adds defensive button handling and fixes the LCD mode-render sequencing; the updated image still needs build and hardware verification.
 8. **Standalone validation — pending:** execute the 88-scenario matrix after the magnetometer preflight failure is resolved or explicitly accepted.
 
 ## Current Status (2026-09-13 connected preflight)
@@ -28,6 +28,12 @@ Develop robust, low-power firmware for a wristwatch replacement board, integrati
 - `.pio/build/nucleo_wb55rg_p/firmware.elf` builds successfully: 18,708 bytes flash and 712 bytes RAM.
 - The connected V2J17S4 ST-Link cannot use PlatformIO's default modern transport. The same ELF was programmed through OpenOCD `interface/stlink-hla.cfg`; flash verification returned `Verified OK`, followed by target reset.
 - `tests/opencasio_test_script.csv` contains 88 unique six-column scenarios. PREFLIGHT-01 and PREFLIGHT-02 are PASS. PREFLIGHT-03 is FAIL because U13 does not ACK.
+
+### Source changes after the connected preflight (2026-09-14)
+
+- Mode rendering fix applied in `src/driver/lcd.c`, `include/driver/lcd.h`, and `src/main.c`: `lcdDisplayClear()` now clears RAM without requesting an intermediate frame; callers submit the frame after writing its complete contents. LCD initialization still submits its initial clear frame explicitly.
+- Defensive button handling applied in `src/auxiliary/gpio-pins-setup.c` and `src/main.c`: BTN_MODE, BTN_ALARM, and BTN_LED use both-edge EXTI wakeups, approximately 20 ms stable-level debounce, press/release latching, and a short interrupt-critical snapshot so bounce and held buttons do not repeat actions.
+- These source changes have not been compiled, flashed, or physically verified yet. The existing connected-preflight measurements below refer to the previously flashed image.
 
 ### Accepted on physical hardware
 
@@ -59,6 +65,8 @@ Develop robust, low-power firmware for a wristwatch replacement board, integrati
 - [x] Configure PC13/PC3/PE4 buttons, PA0 RTC interrupt, PB0/PB1 sensor enables, PB13 LED, and PA5 buzzer.
 - [x] Configure EXTI polarity and NVIC delivery; exercise each UI event path on target through EXTI software injection.
 - [x] Confirm PB0/PB1 mode and HIGH output/readback during connected preflight.
+- [x] Add both-edge button wakeups, stable-level debounce, and press/release latching in the source.
+- [ ] Build and verify debounce behavior with fast presses, slow presses, held buttons, and mechanical bounce.
 - [ ] Verify idle/pressed electrical levels and reliable operation with the physical watch buttons installed.
 - [ ] Verify LED and buzzer output quality in the case.
 
@@ -89,6 +97,8 @@ Develop robust, low-power firmware for a wristwatch replacement board, integrati
 - [x] Map all 24 physical glass segment lines through `SegLineRemap` and handle both LCD RAM words per COM.
 - [x] Resolve PC10/PC11/PC12 as SEG40/41/42 for this package/duty configuration.
 - [x] Physically verify `SU 12 12:34:56`, colon, and every indicator; stable decoder reports only known cells.
+- [x] Change mode rendering to submit one complete LCD frame after its RAM contents are written.
+- [ ] Build and physically verify visible ALARM, STOPWATCH, and TIMER screens after the frame-sequencing fix.
 
 ### Phase 6: Buzzer and LED
 - [x] Implement PB13 LED control and PA5 GPIO square-wave beep generation.
@@ -99,10 +109,12 @@ Develop robust, low-power firmware for a wristwatch replacement board, integrati
 - [x] Implement TIME, TIME-SET, ALARM, ALARM-SET, stopwatch, countdown, MAG, and BME modes.
 - [x] Verify date-field blinking/save, alarm editing/arming, countdown pause/resume, and off-screen stopwatch/countdown progression on target.
 - [x] Render signed rounded temperature and four pressure digits on the BME screen.
+- [ ] Verify the updated mode-render path and defensive button behavior in the full `TIME -> ALARM -> STOPWATCH -> TIMER -> sensors` sequence.
 - [ ] Run every user-visible path using physical buttons after installation.
 
 ### Phase 8: Release Validation
-- [x] Build, program, verify, and reset the final connected image.
+- [x] Build, program, verify, and reset the previous connected image.
+- [ ] Build, program, verify, and reset the image containing the LCD frame and button debounce changes.
 - [x] Record deterministic LCD and peripheral preflight results in the CSV.
 - [ ] Resolve or explicitly accept the magnetometer hardware failure.
 - [ ] Execute and record all 88 disconnected scenarios.
