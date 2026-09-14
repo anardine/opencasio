@@ -113,6 +113,7 @@ enum { EDF_SEC = 0, EDF_HOUR, EDF_MIN, EDF_WDAY, EDF_DAY, EDF_TIME_COUNT };
 enum { EDA_HOUR = 0, EDF_ALARM_HOUR = 0, EDF_ALARM_MIN, EDF_ALARM_COUNT };
 static volatile uint8_t editField;
 static volatile uint8_t editBlinkOn;   // toggled by 1 Hz ticks while editing
+static volatile uint8_t timeRefreshCounter;  // 1 Hz RTC tick, but TIME-mode LCD refreshes every 10 s
 
 // Alarm edit shadow values.
 static volatile uint8_t alarmSetHours, alarmSetMinutes;
@@ -220,6 +221,16 @@ static void handleTimerTick(void) {
     if (uiMode == MODE_TIME_SET || uiMode == MODE_ALARM_SET)
         editBlinkOn = !editBlinkOn;
 
+    if (uiMode == MODE_TIME) {
+        timeRefreshCounter++;
+        if (timeRefreshCounter >= 10) {
+            displayClock();
+            timeRefreshCounter = 0;
+        }
+    } else {
+        timeRefreshCounter = 0;
+    }
+
     if (stwRunning) {
         stwSeconds++;
         if (uiMode == MODE_STW)
@@ -255,7 +266,7 @@ static void handleAlarmFire(void) {
 static void handleRtcInterrupt(void) {
     // Read the INT flag register once; dispatch each set flag, then clear
     // both (write-0-to-clear semantics, Control_INT Flag §3.2.3).
-    uint8_t flags;
+    uint8_t flags = 0;
     if (readFromRTC(&pToI2C, RTC_REG_CONTROL_INT_FLAG, &flags, 1) != CORE_OK)
         return;
 
@@ -269,15 +280,11 @@ static void handleRtcInterrupt(void) {
     uint8_t clearVal = 0xFFU & ~(RTC_FLAG_AF | RTC_FLAG_TF);
     writeToRTC(&pToI2C, RTC_REG_CONTROL_INT_FLAG, &clearVal, 1);
 
-    // TIME mode refreshes the clock on any INT; edit modes redraw with the
-    // current blink phase; other modes own their display.
+    // TIME mode refreshes the clock only every 10 s; edit modes redraw with
+    // the current blink phase; other modes own their display.
     if (uiMode == MODE_TIME) {
-        rtcReadStatus = getTime(&pToI2C, &rtcTime);
-        if (rtcReadStatus == CORE_OK) {
-            rtcReadStatus = getDate(&pToI2C, &rtcDate);
-            displayDateOnLcd();
-            displayTimeOnLcd();
-        }
+        // displayClock() already runs from the 10 s tick in handleTimerTick();
+        // avoid a 1 Hz redraw here to save battery on the normal clock screen.
     } else if (uiMode == MODE_TIME_SET) {
         displayTimeSetScreen();
     } else if (uiMode == MODE_ALARM_SET) {
@@ -419,6 +426,7 @@ static void enterMode(ui_mode_t m) {
             lcdDisplayClear();
             lcdClearAllIndicators();
             if (alarmArmed) lcdSetIndicator(LCD_INDICATOR_BELL);
+            timeRefreshCounter = 0;
             tickStart();   // 1 Hz ticks keep the TIME-mode clock ticking
             displayClock();
             break;
