@@ -10,7 +10,8 @@ Line numbers below refer to offsets in the extracted `.txt` files (grep-able).
 
 - `rv3129_ds.txt` — Micro Crystal RV-3129-C3 datasheet (2 pp): pinout, I²C timing.
 - `rv3129_appman.txt` — RV-3129-C3 Application Manual (68 pp): registers, alarm/timer functions, I²C protocol (§6.7 device addresses: WRITE ACh / READ ADh).
-- `mmc5603nj_ds.txt` — MEMSIC MMC5603NJ Rev.B (18 pp): registers, on-demand & continuous modes, set/reset, product ID @0x39.
+- `mmc5603nj_ds.txt` — MEMSIC MMC5603NJ Rev.B (18 pp): registers, on-demand and continuous modes, set/reset, product ID at 0x39.
+- `bme280_ds.txt` — Bosch BME280 datasheet: reset/startup, calibration, forced-mode measurements, and compensation formulas.
 
 ## RM0434 chapters → rm0434.txt line ranges
 
@@ -38,5 +39,5 @@ Line numbers below refer to offsets in the extracted `.txt` files (grep-able).
 ## Datasheet facts relevant to OPENCASIO
 
 - LCD controller on WB55RE: up to **4 COM x 44 SEG** (or 8x40); F-91W glass uses fewer.
-- I2C1 and I2C3 available; used here for the external RTC (RV-3129-C3 @0x54/7-bit 0xAC raw byte), mag (MMC5603NJ @0x60), T/P/H sensor.
+- I2C1 and I2C3 are available. OPENCASIO uses I2C1 for the external RTC (RV-3129-C3 at 7-bit 0x56 / raw write byte 0xAC), magnetometer (MMC5603NJ at 7-bit 0x30 / raw write byte 0x60), and BME280 at 0x76.
 - LCD segment/common alternate-function mappings per pin are in the datasheet pinout tables (~line 3635+).

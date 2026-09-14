@@ -7,84 +7,106 @@ Develop robust, low-power firmware for a wristwatch replacement board, integrati
 
 ## Engineering Principles
 - **No HAL/Arduino API:** Direct register manipulation (based on RM0434).
-- **Core Constraints:** HSI16-only, blocking I2C, power gating for sensors, explicit error handling.
+- **Core Constraints:** HSI16-only, blocking I2C, explicit errors, and sensor rails held on until the shared-bus clamp is redesigned.
 - **Verification:** Every implementation step requires physical hardware verification.
 
-## Development Phases (Based on AGENT.md)
+## Development Phases
 
-1. **GPIO Bring-up:** 
-   - Define and initialize handles for user buttons, RTC interrupt input, and sensor/LED power control rails.
-2. **I2C1 Bring-up:** 
-   - Configure I2C1 (PB8/PB9) and perform bus scanning to verify RTC (0xAC), Mag (0x60), and BME280 (0x76/0x77) connectivity.
-3. **RTC Integration:** 
-   - Implement read/write functions for time and date using `rv-3129-c3.c`, ensuring correct BCD handling.
-4. **Sensor Integration & Power Gating:** 
-   - Implement power gating logic, device initialization, measurement sequences for BME280 and MMC5603NJ, and heading calculation.
-5. **LCD Driver Completion:** 
-   - Finalize LCD configuration (1/3 duty, 1/3 bias, internal step-up) and implement rendering functions based on the glass truth table.
-6. **Buzzer/LED Control:** 
-   - Implement tone generation (initially GPIO, migrating to TIM2 PWM) and LED control.
-7. **Superloop & Power Management:** 
-   - Transition from a simple busy-wait loop to an event-driven, tickless-ish architecture utilizing LPTIM/RTC timer wakeups for maximum battery life.
+1. **GPIO bring-up — implemented:** board outputs, buttons, RTC interrupt, and EXTI are configured; software-triggered EXTI paths work on target. Physical in-case button checks remain.
+2. **I2C1 bring-up — partially accepted:** RTC 0x56 and BME280 0x76 ACK. The MMC5603NJ at 0x30 is absent from the final full-address scan.
+3. **RTC integration — implemented and verified:** binary/BCD time and date, PON cold-start handling, alarm, and recurring 1 Hz timer interrupts.
+4. **Sensor integration — BME accepted, MAG blocked:** BME280 measurements are plausible; the magnetometer driver is implemented but cannot pass presence detection on the connected board.
+5. **LCD driver — implemented and physically verified:** F-91W glass mapping and indicators match the deterministic target pattern with no unknown RAM cells.
+6. **Buzzer/LED — implemented:** GPIO output paths run; final brightness, audibility, and case fit remain standalone checks.
+7. **Superloop/UI — implemented and target-verified:** EXTI-driven modes, edit flows, alarm state, stopwatch, and countdown behavior operate through the RTC tick engine.
+8. **Standalone validation — pending:** execute the 88-scenario matrix after the magnetometer preflight failure is resolved or explicitly accepted.
 
-## Current Status
-- GPIO bring-up is implemented: `main()` calls `Board_GPIO_Init()` after clock setup, then waits with `WFI` for debugger inspection. No button actions or interrupt wakeups yet.
-- `initRCC()` now waits for HSI16 readiness and the full `SWS=01` status before disabling MSI; startup waits are bounded. The existing LSI1 startup is retained for later LCD work.
-- GPIO init returns `CORE_OK` / `GPIO_CFG_ERR`; output writes use BSRR, and outputs are latched LOW before their mode is enabled.
-- EXTI/NVIC interrupt support is implemented: buttons PC13/PC3/PE4 fire on the rising (press) edge, RTC_INT PA0 on the falling (assert) edge. `GPIO_IRQCallback(pin)` is the weak override point for application reactions. `main()` sleeps in WFI and wakes on any of these events.
-- I2C1 is initialized at 100 kHz Standard mode (RM0434 Table 209, TIMINGR=0x30420F13 at 16 MHz I2CCLK) and main() runs a rail-gated bus scan, storing results in `i2cScanAck[]` / `i2cScanRtc/Mag/Bme76/Bme77` for the debugger. Transfers use AUTOEND STOP (the RV-3129-C3 forbids repeated START) and report `I2C_NACK_ERR` / `I2C_BUS_ERR` explicitly.
-- RTC, sensor, LCD and buzzer integration remain pending. Their existing pin helpers use initialized local handles, not null global pointers; this does not complete those phases.
-- `pio run` passes. Both the output-clear bug and incorrect HSI16 status check were reproduced before their fixes and passed afterward. Physical GPIO/clock verification is still pending: no ST-Link was detected locally. Do not advance to Phase 2 until the hardware gate below passes.
+## Current Status (2026-09-13 connected preflight)
+
+### Final image
+
+- `.pio/build/nucleo_wb55rg_p/firmware.elf` builds successfully: 18,708 bytes flash and 712 bytes RAM.
+- The connected V2J17S4 ST-Link cannot use PlatformIO's default modern transport. The same ELF was programmed through OpenOCD `interface/stlink-hla.cfg`; flash verification returned `Verified OK`, followed by target reset.
+- `tests/opencasio_test_script.csv` contains 88 unique six-column scenarios. PREFLIGHT-01 and PREFLIGHT-02 are PASS. PREFLIGHT-03 is FAIL because U13 does not ACK.
+
+### Accepted on physical hardware
+
+- F-91W LCD segment remap, PC10/11/12 SEG42/41/40 selection, indicators, colon, and stable RAM-to-glass decoding.
+- RV-3129-C3 read/write, `Control_Status.PON` cold-start detection, exact recurring 1 Hz timer sequence, TIME-SET blink, and weekday/day persistence.
+- ALARM-SET entry, hour/minute editing, save-and-arm, BELL truthfulness, and disarm/AIE clearing.
+- Countdown pause/resume without duration reload and continued countdown outside the timer screen.
+- Stopwatch progression outside the stopwatch screen.
+- BME280 initialization, forced measurement, and complete display values. Latest debugger sample: 20.43 °C, 93881.6 Pa, 49.52 %RH; displayed pressure rounds to all four hPa digits.
+- Sensor enable GPIOs: PB0/PB1 are outputs and read HIGH in both IDR and ODR while the shared bus is active.
+
+### Blocking hardware finding
+
+- A complete scan of 0x01-0x7F finds only 0x56 and 0x76. MMC5603NJ address 0x30 does not ACK; product-ID register 0x39 cannot be read.
+- Both tested MAG_EN polarities produced the same NACK. PB1 drive is present at the MCU, so the next check is voltage at U13.B1, followed by U12 output, continuity, assembly orientation, and shorts.
+- Compass display and heading correctness are therefore **not accepted**. Do not mark PREFLIGHT-03 PASS until product ID 0x10 and a plausible changing heading are observed.
+
+### Remaining standalone checks
+
+- Physical button contacts and case alignment.
+- LED brightness and buzzer audibility in the assembled watch.
+- Full battery-removal/PON boot flow, RTC rollover, real alarm firing, and the complete 88-scenario CSV run.
+- Long-duration clock accuracy, sleep/operating current, and battery-life measurement.
+- Any future sensor power-gating optimization requires bus isolation; unpowered sensors currently clamp shared SCL/SDA.
 
 ## Detailed Task List
 
 ### Phase 1: GPIO Bring-up
-- [x] Define initialized board GPIO handles in `src/auxiliary/gpio-pins-setup.c`; retain generic handle types in `include/driver/gpio.h`.
-- [x] Configure PC13/PC3/PE4 buttons and PA0 RTC input without internal pulls (external resistors provide the bias).
-- [x] Configure PB0/PB1/PB13 as low-speed push-pull outputs, initially LOW, and initialize from `src/main.c`.
-- [x] Arm EXTI interrupts: buttons rising edge, RTC_INT falling edge (SYSCFG mux + RTSR/FTSR + IMR1 + NVIC ISER).
-- [ ] Verify on the physical watch through ST-Link before Phase 2.
-
-Hardware gate (no host checks; verify on the board):
-- At the `WFI` loop, confirm `RCC_CR.HSIRDY=1`, `RCC_CFGR.SW=01`, `RCC_CFGR.SWS=01`, and GPIO A/B/C/E clocks enabled (`(AHB2ENR & 0x17) == 0x17`).
-- Confirm `(GPIOB_ODR & 0x2003) == 0` and probe PB0/PB1/PB13 for LOW throughout startup. BSRR reads return zero on hardware; inspect ODR and the physical pins instead.
-- Check PC13/PC3/PE4: idle LOW, pressed HIGH. Check PA0: idle HIGH, LOW when the external RTC asserts INT (not configured by this increment).
-- Confirm PA13/PA14 remain usable for SWD and I2C/LCD/buzzer pins were not reconfigured by board startup.
-- Identify U11/U12 and verify enable polarity before claiming the sensor rails are OFF. LOW enable levels alone cannot prove switched-rail behavior or absence of I2C back-powering.
+- [x] Configure PC13/PC3/PE4 buttons, PA0 RTC interrupt, PB0/PB1 sensor enables, PB13 LED, and PA5 buzzer.
+- [x] Configure EXTI polarity and NVIC delivery; exercise each UI event path on target through EXTI software injection.
+- [x] Confirm PB0/PB1 mode and HIGH output/readback during connected preflight.
+- [ ] Verify idle/pressed electrical levels and reliable operation with the physical watch buttons installed.
+- [ ] Verify LED and buzzer output quality in the case.
 
 ### Phase 2: I2C1 Bring-up
-- [x] Implement `I2C_Init` in `src/driver/i2c.c` for 100 kHz Standard Mode (PB8/PB9, AF4 open-drain, external pull-ups R7/R8).
-- [x] Add I2C bus scanning code to `src/main.c` to verify peripheral IDs (RTC 0x56 always-on; MAG 0x30 and BME280 0x76/0x77 behind gated rails, probed then gated off).
-- [ ] Verify on the physical watch through ST-Link before Phase 3.
+- [x] Configure I2C1 on PB8/PB9 at 100 kHz, AF4 open-drain, using external R7/R8 pull-ups.
+- [x] Confirm RTC at 0x56 and BME280 at 0x76.
+- [x] Confirm no alternate magnetometer address exists with a full valid 7-bit scan.
+- [ ] Restore MMC5603NJ presence at 0x30 and read product ID 0x10.
+- [ ] Capture SCL/SDA at the correct PB8/PB9 probe points if rail/assembly inspection does not resolve the NACK.
 
-Hardware gate:
-- At the WFI loop, check `i2cScanRtc==1`, `i2cScanMag==1`, and exactly one of `i2cScanBme76`/`i2cScanBme77==1` (the BME280 SDO strap, REFERENCE.md §7.5).
-- If any is 0, scope SCL/SDA at U6 pins 6/7 during the scan: confirm the 100 kHz clock, the address byte, and whether the NACK is on the address phase (absent device / rail off) or data phase.
-- Measure U11/U12 rail rise time to replace the ~1 ms `railSettleDelay()` guess, and confirm EN polarity is really active-HIGH (REFERENCE.md §7.3).
+### Phase 3: RTC Integration
+- [x] Implement STOP-separated register reads and writes, BCD conversion, and time/date APIs.
+- [x] Detect full RTC power loss with `Control_Status.PON` bit 5 and enter TIME-SET with defined defaults.
+- [x] Implement legal RV-3129 timer sequencing using 32 Hz/count 31 for recurring one-second ticks.
+- [x] Verify RTC ticks, field blinking, time/date save, alarm configuration, and interrupt clearing on target.
+- [ ] Run battery-removal, minute rollover, long-duration accuracy, and real alarm-fire scenarios standalone.
 
-### Phase 3: RTC Integration (RV-3129-C3)
-- [x] Implement low-level I2C read/write functions in `src/auxiliary/rv-3129-c3.c`.
-- [x] Add functions for setting/getting time/date (BCD conversions).
-- [x] Integrate RTC read into `src/main.c` initialization sequence.
+### Phase 4: Sensors and Shared-Bus Power
+- [x] Implement active-HIGH TEMP_EN/MAG_EN control and conservative rail settling.
+- [x] Keep both rails powered during I2C access because unpowered devices clamp the shared bus.
+- [x] Implement and verify BME280 reset, calibration, forced conversion, temperature, Q24.8 pressure, and Bosch humidity compensation.
+- [x] Implement MMC5603NJ CTRL0 shadowing, set/reset flow, measurement polling, and heading calculation.
+- [ ] Electrically diagnose U12/U13 and verify MMC5603NJ product ID, measurement data, and heading changes.
+- [ ] Measure current draw; redesign bus isolation before claiming idle sensor power-gating.
 
-### Phase 4: Sensor Integration & Power Gating
-- [x] Implement rail control functions (`TEMP_EN`, `MAG_EN`) using GPIO drivers.
-- [x] Implement BME280 init and forced-mode measurement sequence in a new driver file.
-- [x] Implement MMC5603NJ init and measurement sequence in `src/auxiliary/mmc5603nj.c`.
-- [x] Create heading calculation helper.
+### Phase 5: LCD Driver
+- [x] Configure the controller for 1/3 duty, 1/3 bias, and internal step-up.
+- [x] Map all 24 physical glass segment lines through `SegLineRemap` and handle both LCD RAM words per COM.
+- [x] Resolve PC10/PC11/PC12 as SEG40/41/42 for this package/duty configuration.
+- [x] Physically verify `SU 12 12:34:56`, colon, and every indicator; stable decoder reports only known cells.
 
-### Phase 5: LCD Driver Completion
-- [x] Implement `lcdDisable`, `lcdGetStatus`, `lcdDisplayWrite`, `lcdDisplayUpdate` in `src/driver/lcd.c`.
-- [x] Configure LCD controller (1/3 duty/bias, internal step-up).
-- [x] Add rendering functions based on the glass truth table from `REFERENCE.md`.
+### Phase 6: Buzzer and LED
+- [x] Implement PB13 LED control and PA5 GPIO square-wave beep generation.
+- [ ] Confirm brightness/audibility in the assembled watch and identify U1 before deciding whether TIM2 PWM is needed.
 
-### Phase 6: Buzzer/LED Control
-- [x] Implement LED toggle function (`PB13`).
-- [x] Implement tone generation function (`PA5`) using GPIO (later PWM).
+### Phase 7: Superloop and UI
+- [x] Sleep in `WFI` and dispatch button/RTC events from flags set by EXTI callbacks.
+- [x] Implement TIME, TIME-SET, ALARM, ALARM-SET, stopwatch, countdown, MAG, and BME modes.
+- [x] Verify date-field blinking/save, alarm editing/arming, countdown pause/resume, and off-screen stopwatch/countdown progression on target.
+- [x] Render signed rounded temperature and four pressure digits on the BME screen.
+- [ ] Run every user-visible path using physical buttons after installation.
 
-### Phase 7: Superloop & Power Management
-- [x] Refactor `main.c` superloop into an event-driven architecture using EXTI interrupts.
-- [x] Implement low-power sleep (WFI) between events.
+### Phase 8: Release Validation
+- [x] Build, program, verify, and reset the final connected image.
+- [x] Record deterministic LCD and peripheral preflight results in the CSV.
+- [ ] Resolve or explicitly accept the magnetometer hardware failure.
+- [ ] Execute and record all 88 disconnected scenarios.
+- [ ] Measure battery current and evaluate long-term RTC accuracy.
 
 ## Simulator (Renode)
 

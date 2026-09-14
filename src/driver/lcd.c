@@ -6,10 +6,10 @@
 
 // --- F-91W glass truth table ---
 // Adapted from Sensor-Watch (joeycastillo/Sensor-Watch, MIT license).
-// The F-91W glass is the same physical LCD; the COM/SEG numbering
-// matches because both projects wire the same glass pads to COM0-2 /
-// SEG0-23 (Sensor-Watch SAM L22 SLCD, our STM32WB55 LCD controller).
-
+// Same physical glass, DIFFERENT controller wiring: their Segment_Map /
+// IndicatorMap indices are SAM L22 SLCD lines (glass pad numbering), ours
+// are the STM32WB55 lines from REFERENCE.md section 4. SegLineRemap below
+// translates between them; every pixel write goes through it.
 // 7-segment character patterns: bits [6:0] = segments A-G.
 // Index = character - 0x20 (ASCII space through ~).
 static const uint8_t Character_Set[] = {
@@ -135,29 +135,63 @@ static const struct { uint8_t com; uint8_t seg; } IndicatorMap[] = {
     {1, 10},  // LAP
 };
 
-// COM RAM register pairs for 1/3 duty (COM0-COM2 only).
-static volatile uint32_t *comRegL[3] = {
+// --- Glass pad remapping (the actual bring-up bug) ---
+// Sensor-Watch's Segment_Map / IndicatorMap indices are *their* SAM L22
+// SLCD segment lines, i.e. 1:1 with the F-91W glass pad each net reaches
+// (glass pads 1-6 = SW SEG18-23, pads 10-27 = SW SEG17-0; COMs at pads
+// 7-9 = SW COM0-2).  Our board wires the same glass pads to different
+// STM32 LCD segment lines (REFERENCE.md section 4), so every seg index
+// must be translated before it touches LCD_RAM.
+//
+// SegLineRemap[sw_seg] = STM32 SEG line:
+//   sw 0->pad27->SEG12   sw 1->pad26->SEG24   sw 2->pad25->SEG17
+//   sw 3->pad24->SEG40   sw 4->pad23->SEG41   sw 5->pad22->SEG42
+//   sw 6->pad21->SEG7    sw 7->pad20->SEG8    sw 8->pad19->SEG9
+//   sw 9->pad18->SEG6    sw 10->pad17->SEG21  sw 11->pad16->SEG11
+//   sw 12->pad15->SEG10  sw 13->pad14->SEG23  sw 14->pad13->SEG22
+//   sw 15->pad12->SEG4   sw 16->pad11->SEG3   sw 17->pad10->SEG5
+//   sw 18->pad6->SEG2    sw 19->pad5->SEG18   sw 20->pad4->SEG19
+//   sw 21->pad3->SEG20   sw 22->pad2->SEG0    sw 23->pad1->SEG1
+// (PC10/11/12 carry SEG42/41/40 in 1/3 duty per RM0434 Table 117.)
+// COM needs no translation: SW COM0/1/2 = glass pads 7/8/9 = our
+// PA8/PA9/PA10 = STM32 COM0/1/2, same indices.
+static const uint8_t SegLineRemap[24] = {
+    12, 24, 17, 40, 41, 42, 7, 8, 9, 6, 21, 11,
+    10, 23, 22, 4, 3, 5, 2, 18, 19, 20, 0, 1,
+};
+
+// RAM words for 1/3 duty (RM0434 22.6.5-22.6.7): LCD_RAM[2*com] holds
+// SEG[31:0] of COM n, LCD_RAM[2*com+1] bits 11:0 hold SEG[43:32].
+static volatile uint32_t *const comRegL[3] = {
     &LCD->com0_l, &LCD->com1_l, &LCD->com2_l,
+};
+static volatile uint32_t *const comRegH[3] = {
+    &LCD->com0_h, &LCD->com1_h, &LCD->com2_h,
 };
 
 #define LCD_POLL_LIMIT  100000U
 
 // --- Pixel-level operations ---
+// com/seg inputs use Sensor-Watch numbering (see tables above); they are
+// translated to STM32 SEG lines here so all callers (Segment_Map,
+// IndicatorMap, colon, ninth segment) stay untouched.
 
 void lcdSetPixel(uint8_t com, uint8_t seg) {
-    if (com > 2) return;
-    if (seg < 32)
-        *comRegL[com] |= (1U << seg);
+    if (com > 2 || seg > 23) return;
+    uint8_t line = SegLineRemap[seg];
+    if (line < 32)
+        comRegL[com][0] |= (1U << line);
     else
-        LCD->com0_h |= (1U << (seg - 32));  // simplified: all high words share
+        *comRegH[com] |= (1U << (line - 32));
 }
 
 void lcdClearPixel(uint8_t com, uint8_t seg) {
-    if (com > 2) return;
-    if (seg < 32)
-        *comRegL[com] &= ~(1U << seg);
+    if (com > 2 || seg > 23) return;
+    uint8_t line = SegLineRemap[seg];
+    if (line < 32)
+        comRegL[com][0] &= ~(1U << line);
     else
-        LCD->com0_h &= ~(1U << (seg - 32));
+        *comRegH[com] &= ~(1U << (line - 32));
 }
 
 // --- Character display ---

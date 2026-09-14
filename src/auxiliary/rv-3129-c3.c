@@ -102,21 +102,26 @@ uint8_t alarmSet(I2C_Handle_t *pToI2CHandle, const rtc_alarm_t *a) {
     return alarmInit(pToI2CHandle);
 }
 
-// Enable countdown timer: 1 Hz source clock, auto-reload, TIE interrupt.
-// Read-modify-write Control_1 to preserve SROn/EERE/WE/Clk-Int from reset.
-uint8_t timerInit(I2C_Handle_t *pToI2CHandle) {
+// Start the shared UI tick with exact 1 s auto-reload periods. RV-3129-C3
+// §4.4 only accepts TD/TAR changes while TE=0, and only accepts the timer
+// count while both TE=0 and TAR=0.
+uint8_t timerStart1Hz(I2C_Handle_t *pToI2CHandle) {
     uint8_t ctrl1;
     uint8_t status = readFromRTC(pToI2CHandle, RTC_REG_CONTROL_1, &ctrl1, 1);
     if (status != CORE_OK) return status;
-    // TD1:TD0 = 10 → 1 Hz (§4.4: 00=32Hz, 01=8Hz, 10=1Hz, 11=0.5Hz)
-    ctrl1 &= ~(RTC_CTRL1_TD1 | RTC_CTRL1_TD0);
-    ctrl1 |= RTC_CTRL1_TD1;
-    ctrl1 |= RTC_CTRL1_TAR;
-    ctrl1 |= RTC_CTRL1_TE;
+
+    ctrl1 &= ~(RTC_CTRL1_TE | RTC_CTRL1_TAR | RTC_CTRL1_TD1 | RTC_CTRL1_TD0);
     status = writeToRTC(pToI2CHandle, RTC_REG_CONTROL_1, &ctrl1, 1);
     if (status != CORE_OK) return status;
 
-    // Enable Timer Interrupt (TIE bit 1 in Control_INT).
+    // 32 Hz source, n=31. Auto-reload periods are (n+1)/32 = 1 second.
+    uint8_t count[2] = {31U, 0U};
+    status = writeToRTC(pToI2CHandle, RTC_REG_TIMER_LOW, count, 2);
+    if (status != CORE_OK) return status;
+
+    status = timerClear(pToI2CHandle);
+    if (status != CORE_OK) return status;
+
     uint8_t intEn;
     status = readFromRTC(pToI2CHandle, RTC_REG_CONTROL_INT, &intEn, 1);
     if (status != CORE_OK) return status;
@@ -124,10 +129,18 @@ uint8_t timerInit(I2C_Handle_t *pToI2CHandle) {
     status = writeToRTC(pToI2CHandle, RTC_REG_CONTROL_INT, &intEn, 1);
     if (status != CORE_OK) return status;
 
-    // Verify TIE is set.
+    ctrl1 |= RTC_CTRL1_TAR | RTC_CTRL1_TE;
+    status = writeToRTC(pToI2CHandle, RTC_REG_CONTROL_1, &ctrl1, 1);
+    if (status != CORE_OK) return status;
+
+    uint8_t verifyCtrl;
+    status = readFromRTC(pToI2CHandle, RTC_REG_CONTROL_1, &verifyCtrl, 1);
+    if (status != CORE_OK) return status;
     status = readFromRTC(pToI2CHandle, RTC_REG_CONTROL_INT, &intEn, 1);
     if (status != CORE_OK) return status;
-    return (intEn & RTC_INT_TIE) ? CORE_OK : RTC_TIMER_CFG_ERR;
+    const uint8_t required = RTC_CTRL1_TAR | RTC_CTRL1_TE;
+    return ((verifyCtrl & (required | RTC_CTRL1_TD1 | RTC_CTRL1_TD0)) == required &&
+            (intEn & RTC_INT_TIE)) ? CORE_OK : RTC_TIMER_CFG_ERR;
 }
 
 // Clear TF (bit 1) in Control_INT Flag. Writing 0 clears; 1 preserves others.
@@ -136,17 +149,7 @@ uint8_t timerClear(I2C_Handle_t *pToI2CHandle) {
     return writeToRTC(pToI2CHandle, RTC_REG_CONTROL_INT_FLAG, &val, 1);
 }
 
-// Load 16-bit countdown value. n=1..65536 valid; n=0 stops the timer (§4.4).
-// Auto-reload mode reloads n+1 on subsequent periods (first period is exact).
-uint8_t timerSet(I2C_Handle_t *pToI2CHandle, uint16_t countdown) {
-    uint8_t buf[2];
-    buf[0] = (uint8_t)(countdown & 0xFFU);
-    buf[1] = (uint8_t)((countdown >> 8) & 0xFFU);
-    return writeToRTC(pToI2CHandle, RTC_REG_TIMER_LOW, buf, 2);
-}
-
-// Stop the countdown timer: clear TE in Control_1 (1 Hz config and TAR
-// preserved; TIE stays set — TF no longer generated while TE=0).
+// Stop the countdown timer: clear TE; source selection, TAR and TIE stay set.
 uint8_t timerStop(I2C_Handle_t *pToI2CHandle) {
     uint8_t ctrl1;
     uint8_t status = readFromRTC(pToI2CHandle, RTC_REG_CONTROL_1, &ctrl1, 1);

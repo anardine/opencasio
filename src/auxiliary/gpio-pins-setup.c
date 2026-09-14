@@ -75,10 +75,13 @@ void railOff(void) {
     GPIO_WriteToOutputPin(&magEnPin, 0);
 }
 
-// U11/U12 rise time unknown (REFERENCE.md §7.3). ~1 ms at 16 MHz is
-// conservative; tighten after measuring on the board.
+// U11/U12 rise time unknown (REFERENCE.md §7.3) and the BME280 needs its
+// own power-up time before I2C (t_boot ≈ 2 ms, datasheet §5.2). On-silicon
+// evidence: probing ~1 ms after railOn NACKed the BME (fx2 LA saw an
+// intermediate bus level where the STM32 VIH fails) while the mag ACKed.
+// ~20 ms is conservative; shorten after a scope measurement.
 void railSettleDelay(void) {
-    for (volatile uint32_t i = 0; i < 4000; i++) __asm volatile ("nop");
+    for (volatile uint32_t i = 0; i < 320000; i++) __asm volatile ("nop");
 }
 
 // PB13 = LED_EN → R18 → Q2 gate. HIGH = LED on (REFERENCE.md §3).
@@ -142,9 +145,8 @@ uint8_t Btn_GPIO_Init(void) {
 
 uint8_t Board_GPIO_Init(void) {
     // Zero-initialized fields select PP, low speed, no pulls and no EXTI.
-    // GPIO_Init preloads each output LOW before enabling its driver.
-    // TEMP_EN/MAG_EN polarity still needs the load-switch part number;
-    // do not enable either sensor until that hardware question is resolved.
+    // GPIO_Init preloads each output LOW before enabling its driver; main
+    // raises both sensor enables only after the I2C peripheral is ready.
     static const GPIO_Handle_t pins[] = {
         {.pGPIOx = GPIOB, .GPIO_PinConfig = {
             .GPIO_PinNumber = 0, .GPIO_PinMode = GPIO_MODE_OUTPUT}}, // TEMP_EN

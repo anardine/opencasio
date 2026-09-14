@@ -35,8 +35,12 @@
 // Product ID (§Product ID 1: reset value 0x10).
 #define MAG_PRODUCT_ID        0x10U
 
-// Status1 bit 1: Meas_M_Done — magnetic measurement data ready.
-#define MAG_STATUS_MEAS_DONE  (1U << 1)
+// Status1 done bits (datasheet §Status1 register map — the app-note text
+// "Meas_M_Done bit 1" refers to Meas_m_done_int, a factory bit; the real
+// flags live at bit6/7, verified on silicon: Status1 = 0x50 while a
+// measurement was pending).
+#define MAG_STATUS_MEAS_DONE  (1U << 6)
+#define MAG_STATUS_T_DONE     (1U << 7)
 
 // Control 0 bits (§Internal Control 0).
 #define MAG_CTRL0_TAKE_MEAS_M  (1U << 0)  // Trigger magnetic measurement

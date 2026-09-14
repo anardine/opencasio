@@ -1,14 +1,22 @@
 //
 // Created by Alessandro Nardinelli on 12/01/26.
 //
+// MMC5603NJ magnetometer driver.
+//
+// Bring-up notes (on-silicon, 2026-09-12):
+//   - CTRL0 (0x1B) is WRITE-ONLY: reads return 0x60. The state is shadowed
+//     in software — the original read-modify-write set Auto_st_en and
+//     wedged the device in self-test.
+//   - Meas_m_done is Status1 bit 6 and Meas_t_done is bit 7 (datasheet
+//     register map). The app-note's "Meas_M_Done bit 1" text refers to
+//     Meas_m_done_int, a factory bit — polling it never completes.
+//
 
 #include "auxiliary/mmc5603nj.h"
 #include <math.h>
 
-// MMC5603NJ uses repeated-START I2C (unlike the RV-3129-C3 RTC).
-// But our I2C driver sends AUTOEND (STOP) on every transaction, so
-// readFromMag is the same two-transaction pattern as readFromRTC:
-// write register address (STOP), then read N bytes (STOP).
+// MMC5603NJ I2C: our I2C driver always ends with STOP, so register access
+// is the two-transaction pattern (write register address, STOP, then read).
 
 uint8_t readFromMag(I2C_Handle_t *pToI2CHandle, uint8_t reg, uint8_t *buf, uint8_t len) {
     uint8_t status = I2C_Transmit(pToI2CHandle, 0, reg, 0, MAG_ADDR);
@@ -20,9 +28,13 @@ uint8_t writeToMag(I2C_Handle_t *pToI2CHandle, uint8_t reg, uint8_t *buf, uint8_
     return I2C_Transmit(pToI2CHandle, buf, reg, len, MAG_ADDR);
 }
 
+// CTRL0 (0x1B) is WRITE-ONLY (datasheet §Internal Control 0): reads return
+// 0x60 on silicon. State is tracked here instead of read-modify-write.
+static uint8_t ctrl0Shadow;
+
 // Initialize: verify product ID, enable Auto_SR, perform SET/RESET.
-// On-demand mode by default (MAG_CONTINUOUS_MODE = 0 in device_config.h).
-// For continuous mode, define MAG_CONTINUOUS_MODE=1 in device_config.h.
+// On-demand mode (MAG_CONTINUOUS_MODE = 0 by default). Every measurement
+// then re-applies the shadow before triggering.
 uint8_t magInit(I2C_Handle_t *pToI2CHandle) {
     // Verify device presence via product ID (§Product ID 1, 0x39 = 0x10).
     uint8_t pid;
@@ -30,59 +42,44 @@ uint8_t magInit(I2C_Handle_t *pToI2CHandle) {
     if (status != CORE_OK) return status;
     if (pid != MAG_PRODUCT_ID) return MAG_INIT_CFG_ERR;
 
-#if MAG_CONTINUOUS_MODE
-    // Enable automatic set/reset and set ODR for continuous mode.
-    uint8_t ctrl0 = MAG_CTRL0_AUTO_SR | MAG_CTRL0_CMM_FREQ_EN;
-    status = writeToMag(pToI2CHandle, MAG_REG_CTRL0, &ctrl0, 1);
-    if (status != CORE_OK) return status;
-
-    uint8_t odr = 25;  // 25 Hz with BW=00 (75 Hz max for BW=00 + Auto_SR)
-    status = writeToMag(pToI2CHandle, MAG_REG_ODR, &odr, 1);
-    if (status != CORE_OK) return status;
-
-    uint8_t ctrl2 = MAG_CTRL2_CMM_EN;
-    status = writeToMag(pToI2CHandle, MAG_REG_CTRL2, &ctrl2, 1);
-    if (status != CORE_OK) return status;
-#else
-    // On-demand mode: enable Auto_SR for measurement quality.
+    // Enable Auto_SR for measurement quality (datasheet: recommended).
     uint8_t ctrl0 = MAG_CTRL0_AUTO_SR;
     status = writeToMag(pToI2CHandle, MAG_REG_CTRL0, &ctrl0, 1);
     if (status != CORE_OK) return status;
+    ctrl0Shadow = ctrl0;
 
     // Perform initial SET/RESET to clear residual magnetization.
     status = magCalibrate(pToI2CHandle);
     if (status != CORE_OK) return status;
-#endif
     return CORE_OK;
 }
 
 // SET then RESET to clear residual magnetization (§SET/RESET operation).
-// Each operation is self-clearing after 375 ns; no polling needed.
+// Each op is self-clearing after 375 ns and writes the full CTRL0 byte, so
+// the shadow is re-applied and ends at Auto_SR after both ops.
 uint8_t magCalibrate(I2C_Handle_t *pToI2CHandle) {
-    uint8_t cmd = MAG_CTRL0_DO_SET;
+    uint8_t cmd = MAG_CTRL0_AUTO_SR | MAG_CTRL0_DO_SET;
     uint8_t status = writeToMag(pToI2CHandle, MAG_REG_CTRL0, &cmd, 1);
     if (status != CORE_OK) return status;
 
-    cmd = MAG_CTRL0_DO_RESET;
-    return writeToMag(pToI2CHandle, MAG_REG_CTRL0, &cmd, 1);
+    cmd = MAG_CTRL0_AUTO_SR | MAG_CTRL0_DO_RESET;
+    status = writeToMag(pToI2CHandle, MAG_REG_CTRL0, &cmd, 1);
+    if (status != CORE_OK) return status;
+    ctrl0Shadow = MAG_CTRL0_AUTO_SR;
+    return CORE_OK;
 }
 
 // Trigger one magnetic measurement and poll until data is ready.
-// Status1.MEAS_M_DONE (bit 1) = 1 means X/Y/Z data available.
-// Timeout: 100k iterations at 16 MHz ≈ 12 ms — well above the 6.6 ms
-// measurement time for BW=00 (the default, §Internal Control 1).
+// Status1.MEAS_M_DONE (bit 6) = 1 means X/Y/Z data available.
+// Poll bound: each iteration is a write+read I2C pair ≈ 0.5 ms at 100 kHz;
+// 50 iterations ≈ 25 ms — far above the 6.6 ms BW=00 measurement time.
 uint8_t magGetData(I2C_Handle_t *pToI2CHandle, mag_data_t *data) {
-    // Read current CTRL0, set TAKE_MEAS_M bit (preserve Auto_SR).
-    uint8_t ctrl0;
-    uint8_t status = readFromMag(pToI2CHandle, MAG_REG_CTRL0, &ctrl0, 1);
-    if (status != CORE_OK) return status;
-    ctrl0 |= MAG_CTRL0_TAKE_MEAS_M;
-    status = writeToMag(pToI2CHandle, MAG_REG_CTRL0, &ctrl0, 1);
+    uint8_t ctrl0 = ctrl0Shadow | MAG_CTRL0_TAKE_MEAS_M;
+    uint8_t status = writeToMag(pToI2CHandle, MAG_REG_CTRL0, &ctrl0, 1);
     if (status != CORE_OK) return status;
 
-    // Poll Status1 for Meas_M_Done (bit 1).
     uint8_t status1 = 0;
-    uint32_t timeout = 100000;
+    uint32_t timeout = 50;
     while (!(status1 & MAG_STATUS_MEAS_DONE)) {
         status = readFromMag(pToI2CHandle, MAG_REG_STATUS1, &status1, 1);
         if (status != CORE_OK) return status;
@@ -95,7 +92,6 @@ uint8_t magGetData(I2C_Handle_t *pToI2CHandle, mag_data_t *data) {
     if (status != CORE_OK) return status;
 
     // Assemble 20-bit values (§Xout0/Xout1/Xout2).
-    // Xout[19:12] = raw[0], Xout[11:4] = raw[1], Xout[3:0] = raw[6] >> 4.
     int32_t xRaw = ((int32_t)raw[0] << 12) | ((int32_t)raw[1] << 4) | ((int32_t)raw[6] >> 4);
     int32_t yRaw = ((int32_t)raw[2] << 12) | ((int32_t)raw[3] << 4) | ((int32_t)raw[7] >> 4);
     int32_t zRaw = ((int32_t)raw[4] << 12) | ((int32_t)raw[5] << 4) | ((int32_t)raw[8] >> 4);

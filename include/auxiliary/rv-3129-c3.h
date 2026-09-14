@@ -21,9 +21,9 @@
 #define RTC_REG_CONTROL_INT_FLAG  0x02U
 #define RTC_REG_CONTROL_STATUS    0x03U
 #define RTC_REG_CONTROL_RESET     0x04U
-// Control_STATUS bit positions (§3.2.4). VLF (bit 7): voltage-low flag —
-// set at power-on / after battery change; time and date are invalid then.
-#define RTC_STATUS_VLF            (1U << 7)
+// Control_STATUS bit positions (§3.2.4). PON is set after a full RTC
+// power-on reset and remains set until software clears it by writing 0.
+#define RTC_STATUS_PON            (1U << 5)
 
 // Clock page (auto-increment 08→0E)
 #define RTC_REG_SECONDS           0x08U
@@ -106,17 +106,17 @@ uint8_t alarmInit(I2C_Handle_t *pToI2CHandle);
 uint8_t alarmClear(I2C_Handle_t *pToI2CHandle);
 uint8_t alarmSet(I2C_Handle_t *pToI2CHandle, const rtc_alarm_t *a);
 
-// Timer functions. timerInit enables the countdown timer with 1 Hz source
-// clock, auto-reload, and TIE interrupt. timerSet loads the 16-bit countdown
-// value (1-65536; 0 stops). timerClear clears the TF flag.
-// Returns CORE_OK, I2C error, or RTC_TIMER_CFG_ERR.
-// timerStop clears TE (1 Hz config and TAR preserved) — used to pause the
-// tick engine. Returns CORE_OK or an I2C error.
-uint8_t timerInit(I2C_Handle_t *pToI2CHandle);
-uint8_t timerStop(I2C_Handle_t *pToI2CHandle);
+// Start the shared 1 Hz UI tick. The hardware uses the 32 Hz timer source
+// with reload value 31: the first interval is 31/32 s and subsequent
+// auto-reload intervals are exactly 1 s (the RV-3129 adds one reload tick).
+// Configuration follows §4.4 ordering: stop + disable TAR, load the count,
+// clear TF, then enable TAR/TE/TIE. Returns CORE_OK, an I2C error, or
+// RTC_TIMER_CFG_ERR when readback does not match.
+uint8_t timerStart1Hz(I2C_Handle_t *pToI2CHandle);
 
-// Load 16-bit countdown value. n=1..65536 valid; n=0 stops the timer (§4.4).
+// Stop the countdown timer; configuration and TIE remain available for the
+// next start. timerClear clears TF using write-0-to-clear semantics.
+uint8_t timerStop(I2C_Handle_t *pToI2CHandle);
 uint8_t timerClear(I2C_Handle_t *pToI2CHandle);
-uint8_t timerSet(I2C_Handle_t *pToI2CHandle, uint16_t countdown);
 
 #endif //OPENCASIO_RV_3129_C3_H

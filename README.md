@@ -8,18 +8,18 @@
 ## What is this?
 The OPENCASIO is a replacement board for the Casio F-91W, one of the most used wristwatches in the world.
 
-The board integrates a better, sealed RTC module (where the time drift is substantially smaller), as well as a temperature, pressure, and humidity sensor together with a mag module, so you can use it to track the directions you're facing. 
+The board integrates a sealed external RTC, a BME280 temperature/pressure/humidity sensor, and an MMC5603NJ magnetometer intended to provide a compact compass. The current assembled board passes RTC and BME280 checks but does not detect the magnetometer; see the firmware status below.
 
 ## What is it for?
-It's intended to be used by outdoors folks that do not need a bulky smartwatch with useless features and low battery life. With the OPENCASIO, you can have important features in a small, light and classic design. The idea is to maximize the features of the watch to serve as an important tool when you're out. You can monitor atmosferic pressure to understand if a storm is closing in, or use the navigational compass to guide yourself. There's also an upgraded LED that helps you get "some" light during complete darkness. All the native features are untouched, such as alarm, calendar, 12/24 time adjustments, and the stopwatch.
+OPENCASIO targets outdoor users who want useful environmental and navigation functions in the small F-91W case. The current firmware implements a 24-hour clock/calendar, alarm, stopwatch, countdown timer, upgraded light control, and BME readings. Compass support is implemented in firmware but remains blocked by the missing hardware response; 12-hour display selection is not currently implemented.
 
 ## Architecture
 
-The OPENCASIO runs on a STM32WB55REV6 microcontroller. Despite this microcontroller having BLE/WIFI capabilities. Instead, I focused on guaranteeing that the watch would be controlled as much as possible with low current consumption so that the battery could last a long time.
+OPENCASIO uses an STM32WB55RE microcontroller. Its wireless subsystem is not used by the current firmware; the focus is direct-register control and low power.
 
-Since there's not much space, the internal oscillator has been used instead of an external one (HSI). The RTC itself has its own for the LSE.
+The MCU runs from its internal HSI16 oscillator. The sealed RV-3129-C3 supplies independent timekeeping on the same battery rail.
 
-This microcontroller is also LCD capable, so all LCD drivers are directly mapped to the alternative LCD functions on most microcontroller GPIO ports.
+The STM32WB55 includes an LCD controller, and the F-91W glass commons and segment lines are connected to its LCD alternate-function pins.
 
 The following diagram below gives an overview of all the features and how they relate to the microcontroller themselves:
 
@@ -54,11 +54,34 @@ The following diagram below gives an overview of all the features and how they r
 
 ### Firmware
 
-The code runs using `platformio` and the `ST-Link` interface for uploading and debugging.
+The firmware uses direct STM32WB55 register access; it does not use Arduino or HAL APIs. Build the final image with:
 
-As of now, the code is still under development. PRs are welcomed.
+```sh
+pio run -e nucleo_wb55rg_p
+```
 
-Build with `pio run`; run host register-level checks with `python3 test/gpio/run.py` (Rosetta is required on Apple Silicon). These checks do not replace electrical verification. Follow the Phase 1 hardware gate in `DEVELOPMENT_PLAN.md` before starting I2C bring-up.
+The connected V2J17S4 ST-Link requires deprecated OpenOCD HLA transport. PlatformIO's default upload transport does not support this adapter. Program the built ELF with:
+
+```sh
+~/.platformio/packages/tool-openocd/bin/openocd \
+  -f interface/stlink-hla.cfg -f target/stm32wbx.cfg \
+  -c "program .pio/build/nucleo_wb55rg_p/firmware.elf verify reset exit"
+```
+
+Current connected build: 18,708 bytes flash and 712 bytes RAM. OpenOCD programming and flash verification pass.
+
+Implemented and verified on the board:
+
+- Correct F-91W LCD mapping, characters, colon, and indicators.
+- RV-3129-C3 clock/date, full-power-loss detection, 1 Hz UI tick, and alarm configuration.
+- TIME/TIME-SET, ALARM/ALARM-SET, stopwatch, countdown, MAG, and BME mode flow.
+- Alarm editing/arming, countdown pause/resume, and stopwatch/countdown progression while another screen is visible.
+- BME280 temperature, pressure, and humidity measurement. Latest connected sample: 20.43 °C, 93881.6 Pa, 49.52 %RH.
+
+> [!WARNING]
+> The current board does not ACK the MMC5603NJ at its fixed 7-bit address 0x30. A full scan finds only the RTC at 0x56 and BME280 at 0x76 even while PB1/MAG_EN is driven HIGH. Compass operation is not verified; inspect U12, the switched rail at U13.B1, and U13 assembly before treating the watch as complete.
+
+The release/standalone checklist is `tests/opencasio_test_script.csv`. It contains 88 scenarios for battery boot, LCD, buttons, clock editing, alarm, stopwatch, countdown, sensors, power behavior, and recovery. Connected build/upload and LCD preflight pass; peripheral preflight remains failed on the missing magnetometer response. Detailed evidence and unresolved checks are in `DEVELOPMENT_PLAN.md` and `REFERENCE.md`.
 
 ### How to Contribute
 

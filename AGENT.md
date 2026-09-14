@@ -99,49 +99,49 @@ debug/STM32WB55_CM4.svd  SVD for debugger register views
 
 ## 6. Current state
 
-- Phase 1 GPIO code is implemented, but physical verification is pending.
-  `main()` calls `initRCC()` then `Board_GPIO_Init()` and waits in `WFI`.
-  Board init configures PC13/PC3/PE4, PA0 and PB0/PB1/PB13 only; input
-  pulls are external, output enables are initially LOW.
-- EXTI interrupts are armed: buttons (PC13/PC3/PE4) on rising edge, RTC_INT
-  (PA0) on falling edge. ISRs clear PR1 then call the weak `GPIO_IRQCallback(pin)`;
-  override it in application code when the superloop lands. `platformio.ini`
-  sets `-DHAL_EXTI_MODULE_DISABLED` so the Arduino core's HAL EXTI handlers
-  don't collide with `src/driver/gpio.c`.
-- `initRCC()` waits for HSI16 readiness, confirms the full HSI16 SWS encoding,
-  retains LSI1 startup, and disables MSI only after successful bounded waits.
-- There is no host test harness: verification is `pio run` plus on-target
-  debugger inspection. Use DEVELOPMENT_PLAN.md's hardware gate for behavior.
-- Phase 2 I2C1 is implemented: 100 kHz Standard mode, TIMINGR=0x30420F13
-  (RM0434 Table 209 at 16 MHz I2CCLK on PCLK default), AUTOEND STOP on every
-  transaction, explicit I2C_NACK_ERR/I2C_BUS_ERR outcomes, bounded polling.
-  main() runs a rail-gated bus scan and exposes results in i2cScanAck[].
-  External RTC/sensors, LCD rendering and buzzer control are not integrated.
-  The dormant pin helpers no longer dereference null handles. LCD peripheral
-  completion and `GPIO_ToggleOutputPin` remain later-phase work.
+- Final connected image builds at 18,708 bytes flash / 712 bytes RAM. The
+  V2J17S4 ST-Link requires OpenOCD HLA (`interface/stlink-hla.cfg`);
+  programming and ELF verification pass.
+- GPIO, I2C1, LCD, RTC, BME280, LED/buzzer outputs, EXTI superloop, and all
+  UI modes are integrated. The firmware sleeps in `WFI` and uses the
+  RV-3129-C3 timer as its recurring one-second event source.
+- The F-91W glass remap is physically verified with a deterministic pattern.
+  Stable halted-target decoding reports that every lit LCD RAM bit maps to a
+  known cell. Live decoder captures can race frame updates.
+- RTC PON cold-start handling, timer sequencing, TIME-SET/date persistence,
+  alarm editing/arming, countdown pause/resume, and off-screen stopwatch and
+  countdown progression are verified on target through real superloop events.
+- BME280 at 0x76 passes initialization and forced measurements. Latest sample:
+  20.43 °C, 93881.6 Pa, 49.52 %RH.
+- Shared-bus hardware constraint: unpowered sensors clamp SCL/SDA. PB0/PB1
+  stay HIGH after rail startup; do not gate either sensor while RTC/I2C access
+  remains possible without first redesigning bus isolation.
+- **Open blocker:** the current board does not ACK the MMC5603NJ at fixed
+  address 0x30. A full valid 7-bit scan finds only RTC 0x56 and BME280 0x76.
+  PB1/MAG_EN is configured as an output and reads HIGH in IDR/ODR; both tested
+  enable polarities still NACK. Compass behavior is not accepted as verified.
+- `tests/opencasio_test_script.csv` is the release matrix: 88 unique scenarios.
+  Connected build/upload and LCD preflight pass; peripheral preflight fails on
+  the missing magnetometer. Physical in-case and battery-only execution remains.
 
-## 7. Next phase — integration plan (in order)
+## 7. Next checks — in order
 
-1. **GPIO bring-up**: instantiate handles for BTN_MODE/BTN_ALARM/BTN_LED
-   inputs (active-HIGH, pulldown), RTC_INT input (active-LOW, external
-   pull-up), LED_EN output (PB13), TEMP_EN/MAG_EN outputs (PB0/PB1).
-2. **I2C1 bring-up**: PB8/PB9 AF4, 100 kHz standard mode to start; scan bus
-   and confirm 0x56 (RTC), 0x30 (mag), 0x76/0x77 (BME280) ACK.
-3. **RTC**: read/write time & date via `rv-3129-c3.c`; verify BCD handling;
-   wire alarm interrupt to RTC_INT/PA0 later.
-4. **Sensors with power gating**: enable rail → delay for rail rise +
-   device boot → init → measure → gate off. BME280 forced-mode single shots;
-   MMC5603NJ on-demand measurement + `magTransformToHeading()`.
-5. **LCD**: configure LCD_GLASS in 1/3 duty / 1/3 bias, internal step-up via
-   PB2/LCD_VLCD (VLCD source selection + contrast in LCD_FCR), map glass
-   pads per REFERENCE.md §4, then implement digit rendering once the glass
-   truth table (REFERENCE.md §7.2) is available.
-6. **Buzzer/LED**: PA5 tone generation (start GPIO square wave; move to
-   TIM2_CH1 PWM), PB13 LED control.
-7. **Superloop design**: event-driven tickless-ish loop around LPTIM/RTC
-   timer wakeups; no `while(1){}` busy spin except during debug.
+1. Measure U13.B1 while PB1/MAG_EN is HIGH. Inspect U12 output, U13 supply
+   continuity, orientation/assembly, and shorts until address 0x30 ACKs and
+   product ID register 0x39 returns 0x10.
+2. If the supply/assembly path is sound but U13 still NACKs, capture SCL/SDA at
+   the actual PB8/PB9-connected probe points during an address and product-ID
+   transaction. Logic analyzer D0 is SCL and D1 is SDA.
+3. Re-run MAG init/measurement and confirm changing plausible heading data;
+   then change PREFLIGHT-03 to PASS.
+4. Install the board and execute all 88 CSV scenarios with physical buttons,
+   LED, buzzer, battery removal, real alarm firing, clock rollover, stopwatch,
+   countdown, and both sensor screens.
+5. Measure operating/sleep current and long-duration RTC accuracy. Sensor
+   power-gating needs a hardware bus-isolation solution before optimization.
 
-Each step ends with hardware verification via ST-Link before moving on.
+Every step ends with hardware evidence; `DEVELOPMENT_PLAN.md` records accepted
+and outstanding checks, and `REFERENCE.md` records electrical facts.
 
 ## 8. Verification expectations
 

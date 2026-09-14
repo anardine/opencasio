@@ -28,9 +28,9 @@ Ground truth for firmware development. Sources (all extracted under `docs/`):
 
 ## 2. Power architecture
 
-- Single battery rail `VBAT` feeds: MCU (all VDD/VDDA/VDDRF pins), RTC U2 (always on), both LED anodes, I2C pull-ups, switch inputs.
-- **Sensor power gating**: BME280 hangs on U11-switched rail, MMC5603NJ on U12-switched rail. Firmware MUST gate these rails off when sensors are idle; after enabling a rail, re-run the sensor init sequence (cold start every time).
-- Leakage caution: while a sensor rail is off, its I2C pins are still pulled to VBAT by R7/R8 → back-powering through the sensor's ESD diodes. Expect small but nonzero drain; consider reconfiguring bus pins or accept the tradeoff.
+- Single battery rail `VBAT` feeds the MCU, RTC U2, both LED anodes, I2C pull-ups, and both sensor-switch inputs.
+- **Shared-bus constraint:** unpowered sensors clamp SCL/SDA despite the 4.7 kΩ pull-ups. Current firmware raises active-HIGH `TEMP_EN` and `MAG_EN` before the boot scan and keeps both rails enabled while any RTC or sensor traffic is possible. Do not restore idle power-gating without bus isolation or a separate pull-up domain.
+- If a future hardware revision isolates the bus, each sensor must be initialized after its switched rail rises because every enable is a cold start.
 - `VLCD` rail = MCU pin 27 (**PB2**, alternate function `LCD_VLCD`, i.e. the internal LCD step-up output) + Cext1. There is NO dedicated VLCD supply pin on this package; the step-up converter drives VLCD out through PB2. LCD contrast/voltage selection happens inside the LCD peripheral (RM0434 ch. 22).
 
 ## 3. MCU pin map (VFQFPN68)
@@ -43,8 +43,8 @@ Ground truth for firmware development. Sources (all extracted under `docs/`):
 | 12 | PC3 | BTN_MODE | Button input, active-HIGH, 10 kΩ pulldown. PC3 also has `LCD_VLCD` AF (not used for that here). |
 | 40 | PE4 | BTN_ALARM | Button input, active-HIGH, 10 kΩ pulldown. |
 | 15 | PA0 | RTC_INT | Input, RV-3129-C3 interrupt, 10 kΩ pull-up to VBAT → **active-LOW**. |
-| 38 | PB0 | TEMP_EN | Output, BME280 rail switch enable. Polarity of the switch (active-high EN assumed) to be confirmed against switch part datasheet. |
-| 39 | PB1 | MAG_EN | Output, magnetometer rail switch enable. |
+| 38 | PB0 | TEMP_EN | Active-HIGH output for U11/BME280 rail. Final preflight: HIGH in IDR/ODR and BME280 responds at 0x76. |
+| 39 | PB1 | MAG_EN | Active-HIGH output for U12/MMC5603NJ rail. Final preflight: HIGH in IDR/ODR, but U13 does not ACK at 0x30; see §7. |
 | 47 | PB13 | LED_EN | Output → R18 47 Ω → Q2 gate (R21 10 kΩ pulldown keeps LED off at reset). HIGH = LED on. |
 | 20 | PA5 | BUZZER_DIN | Output to buzzer amp U1. Candidate for TIM2_CH1 PWM (PA5 = TIM2_CH1 AF1) instead of plain GPIO beeps. |
 
@@ -52,7 +52,7 @@ Ground truth for firmware development. Sources (all extracted under `docs/`):
 
 | QFN68 pin | Port/pin | AF | Net | Slaves on this bus |
 |-----------|----------|----|-----|--------------------|
-| 6 | PB8 | AF4 I2C1_SCL | BME_SCL | RTC U2 addr raw byte 0xAC (7-bit 0x56), MAG U13 addr 0x60, BME280 U4 addr 0x76 |
+| 6 | PB8 | AF4 I2C1_SCL | BME_SCL | RTC U2 7-bit 0x56 (raw write 0xAC), MMC5603NJ U13 0x30 (raw write 0x60), BME280 U4 0x76 |
 | 7 | PB9 | AF4 I2C1_SDA | BME_SDA | (PB9's LCD_COM3 AF is unused — it is I2C SDA here) |
 
 ### Debug
@@ -90,22 +90,43 @@ Glass pads named by the netlist `LCD_COM1..3` (glass pads 7–9) and `LCD_SEG*` 
 | SEG19 | 65 | PB5 | LCD_SEG9 |
 | SEG20 | 64 | PB4 | LCD_SEG8 |
 | SEG21 | 63 | PB3 | LCD_SEG7 |
-| SEG22 | 60 | PC12 | LCD_SEG30 / LCD_SEG42 * |
-| SEG23 | 59 | PC11 | LCD_SEG29 / LCD_SEG41 * |
-| SEG24 | 58 | PC10 | LCD_SEG28 / LCD_SEG40 * |
+| SEG22 | 60 | PC12 | LCD_SEG42 * |
+| SEG23 | 59 | PC11 | LCD_SEG41 * |
+| SEG24 | 58 | PC10 | LCD_SEG40 * |
 | SEG25 | 57 | PA15 | LCD_SEG17 |
 | SEG26 | 50 | PC6 | LCD_SEG24 |
 | SEG27 | 46 | PB12 | LCD_SEG12 |
-
-\* PC10/PC11/PC12 carry dual SEG labels in datasheet Table 18 because the SEG[43:40] lines are redirected to COM[7:4] by the internal SEG/COM mux depending on the configured duty (RM0434 §22 block diagram). Which index applies for our 1/3-duty configuration must be confirmed against RM0434 during LCD driver work.
-
+\* PC10/PC11/PC12 carry dual SEG labels in datasheet Table 18. RESOLVED via
+RM0434 Table 117 (Remapping capability, VFQFPN68, 1/3 duty, MUX_SEG=0):
+the shared pins act as **SEG[42:40]**, so glass pads 22/23/24 = SEG42/41/40.
 Notes:
 - 3 commons only → glass operates in **1/3 duty, 1/3 bias** mode (RM0434 LCD chapter).
 - All AF assignments above verified against datasheet Table 18 (coordinate-extracted); glass pad 13 = PC4 = `LCD_SEG22` is a normal segment line (earlier "GPIO-driven" claim was a parse error).
 - Unused MCU LCD-capable pins stay GPIO so the controller doesn't drive phantom segments.
 - Datasheet package capability: VFQFPN68 supports up to 4 COM × 28 SEG; we use 3 × 24.
 
-## 4a. F-91W glass truth table
+## 4a. Glass pad → digit mapping (LCD bring-up root cause)
+
+The original "random segments" bug: the Sensor-Watch tables use *their*
+SAM L22 SLCD segment lines, which are 1:1 with the **glass pad** each net
+reaches (SW SEG18-23 = glass pads 1-6, SW SEG17-0 = pads 10-27; SW
+COM0-2 = pads 7-9). Writing those indices straight into STM32 LCD_RAM lit
+the wrong physical lines. `SegLineRemap[24]` in `src/driver/lcd.c`
+translates SW seg index → our STM32 SEG line; every pixel write goes
+through it. Derived from: Sensor-Watch's OSO-SWAT-A1-05 board files +
+ATSAML22 symbol (glass pad → SW SEG net), pluto-fw's `segmap.map`
+(carrotIndustries, same glass on MSP430 — used to cross-check the digit
+topology), our ODB++ netlist (glass pad → MCU pin), and RM0434 Table 117
+for the PC10/11/12 duty mux. `test/lcd/verify.py` decodes LCD RAM back to
+characters to confirm the mapping headlessly.
+
+Connected LCD proof: the deterministic `SU 12 12:34:56` pattern plus SIGNAL,
+BELL, PM, 24H, LAP, and colon was visually confirmed on the physical glass.
+With the target halted for an atomic capture, `python3 test/lcd/verify.py`
+reported that every lit LCD RAM bit maps to a known glass cell. Live captures
+can race LCD updates and must not be treated as mapping failures.
+
+## 4b. F-91W glass truth table
 
 Adapted from the [Sensor-Watch](https://github.com/joeycastillo/Sensor-Watch) project (MIT license, © 2020 Joey Castillo), which uses the same Casio F-91W glass. The tables below map each digit position's 7 segments to COM/SEG pairs, and define the 7-segment bit patterns for each ASCII character. Source: `src/driver/lcd.c` (`Segment_Map[]`, `Character_Set[]`).
 
@@ -253,54 +274,36 @@ VREF ; C39.1 C40.1 U6.13                          // VREF+
 $END
 ```
 
-## 8. Bring-up findings (on-silicon, 2026-09-12 session)
+## 6. Sensor addresses and observed state
 
-1. **Boot-ROM (EMPTY flag)**: a virgin STM32WB55 boots the system bootloader
-   even after flash programming — `FLASH_ACR.EMPTY` is only re-evaluated at
-   option-byte load. A power-on reset (or software write of EMPTY=0) is
-   required once after flashing a virgin device.
-2. **Sensor rails clamp the I2C bus**: with TEMP_EN/MAG_EN low, the unpowered
-   BME280 + MMC5603NJ sink both SCL and SDA to GND hard enough to defeat the
-   4.7 kΩ pull-ups *and* the MCU's ~40 kΩ internal pull-ups (measured: bus
-   pins read LOW with rails off, HIGH with rails on). Any I2C access requires
-   the rails on. §7.3 resolved: the load-switch EN inputs are active-HIGH.
-   Consequence: the "rails always off when idle" plan needs a hardware fix
-   (bus isolation / separate pull-up domain) before it can work.
-3. **BME280 power-up**: probing earlier than ~20 ms after rail enable NACKs;
-   20 ms settle works (datasheet t_boot ≈ 2 ms + rail rise). §7.3's rise-time
-   guess replaced.
-4. **BME280 address**: SDO strap confirmed — the device ACKs 0x76, not 0x77
-   (§7.5 resolved). Forced-mode conversion does not run in the current driver
-   even though the 0x25 trigger write ACKs (data registers stay at reset
-   defaults 0x80000/0x8000) — open, to chase in the sensor phase.
-5. **MMC5603NJ CTRL0 (0x1B) is write-only**: reads return 0x60 on silicon.
-   The driver must shadow it in software (a read-modify-write set Auto_st_en
-   and wedged the device in self-test, Status1 stuck at 0x50). Even with the
-   shadow fix, Status1 polls never show Meas_m_done — open, to debug in the
-   sensor phase with the on-demand flow.
-6. **VLCD charge-pump coupling**: the internal LCD step-up radiates ~90 kHz
-   into long probe wires; the fx2 LA shows threshold chatter when the bus is
-   clamped near its threshold. Instrument artifact, not bus activity.
-7. **ST-Link notes**: the clone (V2J17S4) needs OpenOCD HLA mode (`stlink-hla`)
-   — direct SWD requires firmware ≥ V2J24. PlatformIO's tool-stlink is v1.4.0
-   (2017) and cannot handle the STM32WB55; flash via OpenOCD instead.
+| Device | Documented 7-bit address | Raw byte convention | Final connected preflight |
+|--------|--------------------------|---------------------|---------------------------|
+| RV-3129-C3 RTC | 0x56 | `0xAC` write / `0xAD` read (`RTC_ADDR`) | ACK; time/date and 1 Hz interrupt timer verified |
+| MMC5603NJ magnetometer | 0x30 | `0x60` write / `0x61` read (`MAG_ADDR`) | **No ACK**; absent from full 0x01-0x7F scan |
+| BME280 | 0x76 | `0xEC` write / `0xED` read | ACK; chip initialization and forced measurement verified |
 
-## 6. Sensor addresses & quick facts
+- **RV-3129-C3:** INT pin 7 is open-drain active-LOW, matching R11 and PA0. Register reads require STOP between the register-address write and read. `Control_Status.PON` is bit 5 and indicates a full RTC power-on reset; bit 7 is EEbusy, not a validity-loss flag.
+- **RTC timer:** firmware uses the 32 Hz source with reload count 31. TE/TAR are disabled before loading the count, TF is cleared, then TAR/TE/TIE are enabled. Recurring one-second delivery was verified on target.
+- **MMC5603NJ:** fixed address 0x30 and product-ID register 0x39 should return 0x10. CTRL0 at 0x1B is write-only and is shadowed by the driver. These driver rules are implemented, but the current board NACKs before any register can be read.
+- **BME280:** SDO strap is confirmed at 0x76. Soft-reset settling, calibration reads, forced-mode retry, Bosch pressure Q24.8 conversion, and humidity compensation are implemented. Latest connected sample: 20.43 °C, 93881.6 Pa, 49.52 %RH.
 
-All confirmed against the device datasheets (`docs/rv3129_appman.txt`, `docs/mmc5603nj_ds.txt`).
+## 7. Remaining hardware and standalone checks
 
-| Device | 7-bit addr | Raw byte (driver convention) | Bus position |
-|--------|-----------|------------------------------|--------------|
-| RV-3129-C3 RTC | 0x56 | `0xAC` write / `0xAD` read (`RTC_ADDR`) | always powered |
-| MMC5603NJ mag | 0x30 | `0x60` write / `0x61` read (`MAG_ADDR`) | gated rail U12 |
+1. **Magnetometer blocker:** measure the switched rail at U13.B1 while PB1/MAG_EN is HIGH. Then check U12 output, U13 orientation/assembly, supply continuity, and shorts. Firmware scans all valid 7-bit addresses; only 0x56 and 0x76 ACK. Reversing the tested MAG_EN polarity did not expose another device.
+2. Exercise the three physical watch buttons in the assembled case. Software EXTI injection verified the handlers and state machine, but not button mechanics, pad contact, or case alignment.
+3. Confirm LED brightness and buzzer audibility after installation. GPIO paths execute on target; final in-case output quality remains unchecked.
+4. Run all 88 standalone scenarios in `tests/opencasio_test_script.csv`, including battery removal, alarm firing, mode cycling, stopwatch/countdown persistence, and long clock rollover.
+5. Measure operating and sleep current. The present hardware requires both sensor rails to remain enabled for shared-I2C operation, so the intended power-gating design is not yet available.
+6. Identify buzzer amplifier U1 and decide whether GPIO square-wave drive is sufficient or TIM2 PWM is required.
 
-- **RV-3129-C3** (app manual): INT pin (pin 7) is open-drain, active-LOW → matches the R11 pull-up + PA0 input. Pin 7 doubles as CLKOUT selectable via Control_1 bit7 (`Clk/Int`). I²C protocol, register pages and alarm/timer functions in app-manual ch. 4–6.
-- **MMC5603NJ** (Rev.B): factory-set 7-bit address `[0110000]`; product-ID register at `0x39` — read it at bring-up as presence check. On-demand and continuous modes; continuous mode needs non-zero ODR in `0x2A` plus `Cmm_freq_en`; automatic set/reset via `Auto_SR_en`. Full register map in the datasheet.
-- BME280: fixed 7-bit address 0x76 (SDO = GND) or 0x77 (SDO = VDDIO) — strap not visible in netlist, verify at bring-up.
+## 8. Bring-up findings (on-silicon through 2026-09-13)
 
-## 7. Open questions (resolve during development)
-
-1. Which SEG index (30/42, 29/41, 28/40) applies on PC12/PC11/PC10 in 1/3 duty — resolve via RM0434 SEG/COM mux rules during LCD driver work.
-3. Load-switch polarity (EN active-high?) and startup rise time → delay after enabling rail before I2C access. Switch part numbers not in netlist.
-4. Buzzer amp U1 identity/gain: determines whether PA5 should be PWM (tone) or square-wave GPIO.
-5. BME280 SDO strap (addr 0x76 vs 0x77).
+1. **Boot ROM:** a virgin STM32WB55 may boot the system loader after flash programming because `FLASH_ACR.EMPTY` is re-evaluated at option-byte load. A power-on reset, or explicitly clearing EMPTY, is required once.
+2. **Sensor rails:** unpowered BME280/MMC5603NJ devices clamp the shared I2C bus. Active-HIGH U11/U12 operation and a conservative ~20 ms settle are established. Both rails currently stay enabled.
+3. **BME280:** final driver passes initialization and measurement on silicon. Earlier reset-default samples came from insufficient post-reset settling; pressure and humidity compensation defects are fixed.
+4. **MMC5603NJ:** write-only CTRL0 shadowing and Status1 bit-6 completion handling are implemented. Earlier sessions reached measurement code, but the final full-address scan finds no device at 0x30. Current product-ID reads NACK, so compass behavior is not accepted as verified.
+5. **LCD:** STM32 segment-line remapping, high-word COM handling, and PC10/PC11/PC12 SEG42/41/40 selection are resolved. The complete deterministic pattern was physically accepted and stable RAM decoding reports no unknown cells.
+6. **RTC:** PON bit handling, legal timer sequencing, exact recurring one-second ticks, TIME-SET blinking, and weekday/day persistence are verified on target.
+7. **UI clocks:** ALARM-SET reachability and arm/disarm truthfulness are verified. Countdown pause preserved 598 seconds, resumed to 597, and reached 594 in another mode. Stopwatch advanced from 2 to 5 seconds while another screen was shown.
+8. **Programming:** the V2J17S4 ST-Link requires deprecated OpenOCD HLA transport. The final ELF builds at 18,708 bytes flash / 712 bytes RAM and was programmed with `stlink-hla.cfg`; OpenOCD reported `Verified OK`.
+9. **Preflight disposition:** `PREFLIGHT-01` build/upload and `PREFLIGHT-02` LCD pass. `PREFLIGHT-03` remains FAIL solely because the magnetometer does not ACK. The CSV intentionally gates disconnection on resolving or explicitly accepting that hardware failure.
