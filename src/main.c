@@ -4,7 +4,7 @@
 // OPENCASIO firmware — classic F-91W behaviour first.
 //
 // Modes (cycled with the MODE key, like the original MODE button):
-//   TIME → TIME-SET → ALARM → ALARM-SET → STW → TMR → TIME
+//   TIME → ALARM → STW → TMR → TEMP → PRESSURE → HUMIDITY → MAG → TIME
 //
 // Button mapping (3 keys vs. the original's 4 — documented in the plan):
 //   BTN_MODE  (PC3)  cycle mode / next field in edit modes  (F-91W "MODE")
@@ -17,8 +17,8 @@
 //       TMR    : start / stop
 //   BTN_LED   (PC13) light + key beep                      (F-91W "light")
 //       Edit modes: increment the blinking field.
-//       STW: reset (only while stopped). TMR: +1 min (only when stopped).
-//       ALARM (not in edit): arm/disarm. TIME: light + beep.
+//       Every non-edit mode lights the LED. STW also resets while stopped,
+//       TMR also adds 1 min while stopped, and ALARM also arms/disarms.
 //
 // Editing modes blink the active field at 1 Hz (the RV-3129-C3 timer is
 // the blink source while TE runs — the same tick engine STW/TMR use).
@@ -27,9 +27,8 @@
 // tick engine: STW seconds, TMR countdown, and edit-blink all dispatch off
 // the same TF flag through RTC_INT (PA0, active-LOW).
 //
-// Sensors (mag / BME) need no user configuration; their overlay comes after
-// the classic features (mag auto-calibrates on entry, blinking its
-// indicator — later phase).
+// Sensors need no user configuration. One BME sample is shown across three
+// consecutive screens after the classic watch functions; MAG follows them.
 //
 
 #include "../include/etc/error.h"
@@ -59,12 +58,13 @@ rtc_time_t rtcTime;
 rtc_date_t rtcDate;
 volatile uint8_t rtcReadStatus;
 
-// Sensor results retained for debugger preflight and the MAG/BME UI modes.
+// Sensor results retained for debugger preflight and the sensor UI modes.
 mag_data_t   magData;
 bme280_data_t bmeData;
 volatile uint8_t bmeInitStatus, bmeMeasStatus;
 volatile uint8_t lcdInitStatus;
 volatile uint8_t magInitStatus, magMeasStatus;
+static uint8_t magReady;
 static volatile uint8_t editMonth = 1, editDay = 1;  // date edit shadows (month 1-12, day 1-31)
 
 // Edit-mode state (declared early: the INT handler blinks these fields).
@@ -73,6 +73,8 @@ static rtc_alarm_t editAlarm;
 
 // BME280 address resolved from the boot bus scan.
 static uint8_t bme280Addr;
+static uint8_t bmeDataValid;
+static uint8_t bmeTempFahrenheit;
 
 // --- Event flags set by EXTI ISR callbacks (consumed by the superloop) ---
 #define BUTTON_LED_MASK   (1U << 0)
@@ -85,12 +87,17 @@ static void showAlarm(void);
 static void handleModeButton(void);
 static void handleAlarmButton(void);
 static void handleLedButton(void);
+static void updateMagDisplay(void);
+static void incrementTimeField(void);
+static void incrementAlarmField(void);
+static void autoRepeatEditField(void);
 volatile uint8_t rtcIntFlag;    // PA0 falling (timer tick / alarm fire)
 
 // --- UI state machine ---
 typedef enum {
     MODE_TIME = 0, MODE_TIME_SET, MODE_ALARM, MODE_ALARM_SET,
-    MODE_STW, MODE_TMR, MODE_MAG, MODE_BME,
+    MODE_STW, MODE_TMR, MODE_BME_TEMP, MODE_BME_PRESSURE,
+    MODE_BME_HUMIDITY, MODE_MAG,
 } ui_mode_t;
 static volatile ui_mode_t uiMode = MODE_TIME;
 
@@ -118,6 +125,7 @@ enum { EDF_SEC = 0, EDF_MIN, EDF_HOUR, EDF_DAY, EDF_MONTH, EDF_TIME_COUNT };
 enum { EDA_HOUR = 0, EDF_ALARM_HOUR = 0, EDF_ALARM_MIN, EDF_ALARM_COUNT };
 static volatile uint8_t editField;
 static volatile uint8_t editBlinkOn = 1;   // toggled by 1 Hz ticks while editing
+static volatile uint8_t editLedHoldTicks;
 
 // Alarm edit shadow values.
 static volatile uint8_t alarmSetHours, alarmSetMinutes;
@@ -146,7 +154,6 @@ static void displayTimeOnLcd(void) {
     buf[6] = 0;
     lcdDisplayString(buf, 4);
     lcdSetColon();
-    lcdDisplayUpdate();
 }
 
 static void displayDateOnLcd(void) {
@@ -159,7 +166,6 @@ static void displayDateOnLcd(void) {
     buf[1] = '0' + (rtcDate.day % 10);
     buf[2] = 0;
     lcdDisplayString(buf, 2);
-    lcdDisplayUpdate();
 }
 
 static void displayClock(void) {
@@ -168,6 +174,7 @@ static void displayClock(void) {
         rtcReadStatus = getDate(&pToI2C, &rtcDate);
         displayDateOnLcd();
         displayTimeOnLcd();
+        lcdDisplayUpdate();
     }
 }
 
@@ -239,8 +246,13 @@ static void displayMmss(uint8_t mm, uint8_t ss, uint8_t colonOn) {
 // Update every active software clock regardless of the visible mode. This is
 // what lets stopwatch and countdown continue while another screen is shown.
 static void handleTimerTick(void) {
-    if (uiMode == MODE_TIME_SET || uiMode == MODE_ALARM_SET)
+    if (uiMode == MODE_TIME_SET || uiMode == MODE_ALARM_SET) {
         editBlinkOn = !editBlinkOn;
+        if (buttonHeldFlags & BUTTON_LED_MASK) {
+            if (editLedHoldTicks < 4U) editLedHoldTicks++;
+            if (editLedHoldTicks >= 4U) autoRepeatEditField();
+        }
+    }
 
     if (uiMode == MODE_TIME) {
         displayClock();
@@ -347,6 +359,8 @@ static void handleButtonEvents(void) {
     uint8_t released = pending & (uint8_t)~levels;
 
     buttonHeldFlags &= (uint8_t)~released;
+    if (released & BUTTON_LED_MASK) editLedHoldTicks = 0;
+    if (released & BUTTON_LED_MASK) ledOff();
 
     if (pressed & BUTTON_MODE_MASK) {
         if (!(buttonHeldFlags & BUTTON_MODE_MASK)) {
@@ -363,6 +377,9 @@ static void handleButtonEvents(void) {
     if (pressed & BUTTON_LED_MASK) {
         if (!(buttonHeldFlags & BUTTON_LED_MASK)) {
             buttonHeldFlags |= BUTTON_LED_MASK;
+            editLedHoldTicks = 0;
+            if (uiMode != MODE_TIME_SET && uiMode != MODE_ALARM_SET)
+                ledOn();
             handleLedButton();
         }
     }
@@ -430,6 +447,39 @@ static void incrementAlarmField(void) {
     buzzerBeep(10);
 }
 
+static void autoRepeatEditField(void) {
+    while (GPIOC->idr & (1U << 13)) {
+        // Existing 320k-loop debounce is ~20 ms at HSI16; 3.2M gives
+        // approximately 200 ms between repeats, or five increments/second.
+        for (volatile uint32_t delay = 0; delay < 3200000U; delay++)
+            __asm volatile ("nop");
+        if (!(GPIOC->idr & (1U << 13))) break;
+
+        if (uiMode == MODE_TIME_SET) {
+            switch (editField) {
+                case EDF_SEC:   editTime.seconds = (editTime.seconds + 1) % 60; break;
+                case EDF_MIN:   editTime.minutes = (editTime.minutes + 1) % 60; break;
+                case EDF_HOUR:  editTime.hours   = (editTime.hours + 1) % 24;   break;
+                case EDF_DAY:   editDay          = (editDay % 31) + 1;          break;
+                case EDF_MONTH: editMonth        = (editMonth % 12) + 1;        break;
+                default: break;
+            }
+            editBlinkOn = 1;
+            displayTimeSetScreen();
+        } else if (uiMode == MODE_ALARM_SET) {
+            if (editField == EDF_ALARM_HOUR)
+                alarmSetHours = (alarmSetHours + 1) % 24;
+            else
+                alarmSetMinutes = (alarmSetMinutes + 1) % 60;
+            editBlinkOn = 1;
+            displayAlarmSetScreen();
+        } else {
+            break;
+        }
+    }
+    editLedHoldTicks = 0;
+}
+
 static void exitAlarmSet(void) {
     alarmHours = alarmSetHours;
     alarmMinutes = alarmSetMinutes;
@@ -473,6 +523,65 @@ static void showTmr(void) {
     uint16_t r = (tmrRunning || tmrPaused) ? tmrRemaining : tmrDuration;
     displayMmss((uint8_t)(r / 60), (uint8_t)(r % 60), 1);
 }
+
+static void showMagError(void) {
+    lcdDisplayClear();
+    lcdDisplayString("--", 0);
+    lcdDisplayString("E-MAG", 4);
+    lcdDisplayUpdate();
+}
+
+static void updateMagDisplay(void) {
+    if (!magReady) {
+        magInitStatus = magInit(&pToI2C);
+        if (magInitStatus != CORE_OK) {
+            showMagError();
+            return;
+        }
+        magReady = 1;
+    }
+
+    magMeasStatus = magGetData(&pToI2C, &magData);
+    if (magMeasStatus != CORE_OK) {
+        // The bus occasionally NACKs a measurement request for longer than
+        // a single immediate retry covers (logic-analyzer capture showed
+        // back-to-back NACKs on address write with no settling gap).
+        // Back off briefly and retry a few times before forcing a full
+        // re-init/E-MAG, so a transient condition doesn't throw away an
+        // already-working session.
+        uint8_t attempt;
+        for (attempt = 0; attempt < 3; attempt++) {
+            for (volatile uint32_t d = 0; d < 40000; d++) __asm volatile ("nop");
+            magMeasStatus = magGetData(&pToI2C, &magData);
+            if (magMeasStatus == CORE_OK) break;
+        }
+        if (magMeasStatus != CORE_OK) {
+            magReady = 0;
+            showMagError();
+            return;
+        }
+    }
+
+    uint16_t heading = magTransformToHeading(&magData);
+    static const char directions[8][3] = {
+        "N ", "NE", "E ", "SE", "S ", "SW", "W ", "NW",
+    };
+    uint8_t direction = (uint8_t)(((heading + 225U) / 450U) % 8U);
+    char buf[7] = {
+        'H',
+        '0' + (heading / 1000),
+        '0' + ((heading / 100) % 10),
+        '0' + ((heading / 10) % 10),
+        '0' + (heading % 10),
+        ' ',
+        0,
+    };
+    lcdDisplayClear();
+    lcdDisplayString(directions[direction], 0);
+    lcdDisplayString(buf, 4);
+    lcdDisplayUpdate();
+}
+
 static void enterMode(ui_mode_t m) {
     uiMode = m;
     switch (m) {
@@ -499,82 +608,141 @@ static void enterMode(ui_mode_t m) {
 }
 static void enterMagMode(void) {
     uiMode = MODE_MAG;
+    magReady = 0;
+    // Don't submit a blank frame here: updateMagDisplay() does its own
+    // clear + single lcdDisplayUpdate(). Submitting one here first would
+    // write-protect LCD RAM before the heading digits are rendered,
+    // leaving the screen stuck blank (same root cause as the earlier
+    // stuck-clock bug).
+    updateMagDisplay();
+}
+
+static void exitMagMode(void) {
+    if (magReady) magMeasStatus = magStandby(&pToI2C);
+    magReady = 0;
+    enterMode(MODE_TIME);
+}
+
+static uint8_t refreshBmeData(void) {
+    bmeDataValid = 0;
+    bmeInitStatus = bme280Init(&pToI2C, bme280Addr);
+    if (bmeInitStatus != CORE_OK) return bmeInitStatus;
+
+    bmeMeasStatus = bme280Measure(&pToI2C, &bmeData);
+    if (bmeMeasStatus != CORE_OK) return bmeMeasStatus;
+
+    bmeDataValid = 1;
+    return CORE_OK;
+}
+
+static void showBmeError(void) {
     lcdDisplayClear();
-    // No user configuration: calibration runs automatically on entry, with
-    // a blink cue (SIGNAL indicator toggles around the SET/RESET ops).
-    lcdSetIndicator(LCD_INDICATOR_SIGNAL);
-    lcdDisplayUpdate();
-    buzzerBeep(15);
-    magInitStatus = magInit(&pToI2C);
-    lcdClearIndicator(LCD_INDICATOR_SIGNAL);
-    lcdDisplayUpdate();
-    if (magInitStatus != CORE_OK) {
-        lcdDisplayString("E-   ", 4);
-        lcdDisplayUpdate();
-        return;
-    }
-    magMeasStatus = magGetData(&pToI2C, &magData);
-    if (magMeasStatus != CORE_OK) {
-        lcdDisplayString("E-   ", 4);
-        lcdDisplayUpdate();
-        return;
-    }
-    // Heading 0-3599 (0.1° resolution) on positions 4-7; stays on screen
-    // until the user cycles on with MODE.
-    uint16_t hdg = magTransformToHeading(&magData);
-    char buf[7];
-    buf[0] = 'H';
-    buf[1] = '0' + (hdg / 1000);
-    buf[2] = '0' + ((hdg / 100) % 10);
-    buf[3] = '0' + ((hdg / 10) % 10);
-    buf[4] = '0' + (hdg % 10);
-    buf[5] = ' ';
-    buf[6] = 0;
-    lcdDisplayString(buf, 4);
-    lcdSetIndicator(LCD_INDICATOR_SIGNAL);
+    lcdDisplayString("E-BME", 4);
     lcdDisplayUpdate();
 }
 
-static void enterBmeMode(void) {
-    uiMode = MODE_BME;
+// The sensor sits inside the case against the wearer's wrist, so on-wrist
+// readings run hot vs. ambient (body heat + no airflow, tested exposed on
+// the bench). Subtract a fixed offset to approximate ambient/skin-adjacent
+// temperature. This is a rough compensation, not a calibrated model.
+#define BME_WRIST_OFFSET_C  -2.0f
+
+static void showBmeTemperature(void) {
+    float temperature = bmeData.temp_C + BME_WRIST_OFFSET_C;
+    char unit = 'C';
+    if (bmeTempFahrenheit) {
+        temperature = temperature * 9.0f / 5.0f + 32.0f;
+        unit = 'F';
+    }
+
+    int32_t tenths = (int32_t)(temperature * 10.0f +
+                               (temperature >= 0 ? 0.5f : -0.5f));
+    if (tenths < -999) tenths = -999;
+    if (tenths > 9999) tenths = 9999;
+    int32_t magnitude = tenths < 0 ? -tenths : tenths;
+    int32_t whole = magnitude / 10;
+    int32_t tenthDigit = magnitude % 10;
+
+    // Whole-degree field: two digits (or sign + digit) rendered at
+    // positions 4-5 (the "hours" field on the F-91W glass, no colon shown).
+    char main_text[3] = {
+        ' ',
+        '0' + (whole % 10),
+        0,
+    };
+    if (tenths < 0) {
+        main_text[0] = (whole >= 10) ? '-' : ' ';
+        if (whole < 10) main_text[1] = '-';
+    } else if (whole >= 10) {
+        main_text[0] = '0' + ((whole / 10) % 10);
+    }
     lcdDisplayClear();
-    bmeInitStatus = bme280Init(&pToI2C, bme280Addr);
-    if (bmeInitStatus != CORE_OK) {
-        lcdDisplayString("E-   ", 4);
-        lcdDisplayUpdate();
+    lcdDisplayString(main_text, 6);
+    // The tenths digit and unit letter are placed on the smaller
+    // seconds-sized segment (positions 8-9), to the right of the whole
+    // number, with no colon shown, e.g. whole=22, tenths=1, unit=C reads
+    // as "22" followed by a small "1C".
+    char frac_text[3] = { '0' + tenthDigit, unit, 0 };
+    lcdDisplayString(frac_text, 8);
+    lcdDisplayUpdate();
+}
+
+static void enterBmeTemperatureMode(void) {
+    uiMode = MODE_BME_TEMP;
+    if (refreshBmeData() != CORE_OK) {
+        showBmeError();
         return;
     }
-    bmeMeasStatus = bme280Measure(&pToI2C, &bmeData);
-    if (bmeMeasStatus != CORE_OK) {
-        lcdDisplayString("E-   ", 4);
-        lcdDisplayUpdate();
+    showBmeTemperature();
+}
+
+static void enterBmePressureMode(void) {
+    uiMode = MODE_BME_PRESSURE;
+    if (!bmeDataValid && refreshBmeData() != CORE_OK) {
+        showBmeError();
         return;
     }
-    // Signed temperature uses three left-hand characters; pressure uses all
-    // four right-hand characters so the hPa ones digit is never discarded.
-    int32_t tC = (int32_t)(bmeData.temp_C + (bmeData.temp_C >= 0 ? 0.5f : -0.5f));
+
+    lcdDisplayClear();
     int32_t pHpa = (int32_t)(bmeData.pressure_Pa + 50.0f) / 100;
-    int32_t tAbs = tC < 0 ? -tC : tC;
-    if (tAbs > 99) tAbs = 99;
     if (pHpa < 0) pHpa = 0;
     if (pHpa > 9999) pHpa = 9999;
 
-    char temp[4] = {
-        (tC < 0) ? '-' : ' ',
-        '0' + (tAbs / 10),
-        '0' + (tAbs % 10),
-        0,
-    };
-    char pressure[5] = {
+    char pressure[7] = {
+        'P',
+        ' ',
         '0' + ((pHpa / 1000) % 10),
         '0' + ((pHpa / 100) % 10),
         '0' + ((pHpa / 10) % 10),
         '0' + (pHpa % 10),
         0,
     };
-    lcdDisplayString(temp, 0);
-    lcdDisplayString(pressure, 6);
-    lcdSetIndicator(LCD_INDICATOR_SIGNAL);
+    lcdDisplayString(pressure, 4);
+    lcdDisplayUpdate();
+}
+
+static void enterBmeHumidityMode(void) {
+    uiMode = MODE_BME_HUMIDITY;
+    if (!bmeDataValid && refreshBmeData() != CORE_OK) {
+        showBmeError();
+        return;
+    }
+
+    lcdDisplayClear();
+    int32_t humidity = (int32_t)(bmeData.humidity_pct + 0.5f);
+    if (humidity < 0) humidity = 0;
+    if (humidity > 100) humidity = 100;
+
+    char humidityText[7] = {
+        'r',
+        'H',
+        ' ',
+        '0' + ((humidity / 100) % 10),
+        '0' + ((humidity / 10) % 10),
+        '0' + (humidity % 10),
+        0,
+    };
+    lcdDisplayString(humidityText, 4);
     lcdDisplayUpdate();
 }
 
@@ -588,9 +756,11 @@ static void cycleMode(void) {
         case MODE_ALARM:     enterMode(MODE_STW);   break;
         case MODE_ALARM_SET: exitAlarmSet();        break;
         case MODE_STW:       enterMode(MODE_TMR);   break;
-        case MODE_TMR:       enterMagMode();        break;
-        case MODE_MAG:       enterBmeMode();        break;
-        case MODE_BME:       enterMode(MODE_TIME);  break;
+        case MODE_TMR:       enterBmeTemperatureMode(); break;
+        case MODE_BME_TEMP:  enterBmePressureMode();    break;
+        case MODE_BME_PRESSURE: enterBmeHumidityMode(); break;
+        case MODE_BME_HUMIDITY: enterMagMode();         break;
+        case MODE_MAG:       exitMagMode();             break;
         default:             enterMode(MODE_TIME);  break;
     }
     buzzerBeep(15);
@@ -652,20 +822,40 @@ static void handleAlarmButton(void) {
             showTmr();
             buzzerBeep(15);
             break;
+        case MODE_BME_TEMP:
+            bmeTempFahrenheit = !bmeTempFahrenheit;
+            if (!bmeDataValid && refreshBmeData() != CORE_OK)
+                showBmeError();
+            else
+                showBmeTemperature();
+            buzzerBeep(15);
+            break;
+        case MODE_MAG:
+            updateMagDisplay();
+            buzzerBeep(15);
+            break;
         default:
             break;
     }
 }
 
 static void handleLedButton(void) {
+    if (uiMode == MODE_TIME_SET) {
+        incrementTimeField();
+        return;
+    }
+    if (uiMode == MODE_ALARM_SET) {
+        incrementAlarmField();
+        return;
+    }
+
     switch (uiMode) {
         case MODE_STW:
             if (!stwRunning) {
                 stwSeconds = 0;
                 showStw();
-                buzzerBeep(15);
             }
-            return;   // classic light only outside STW
+            break;
         case MODE_TMR:
             if (!tmrRunning) {
                 tmrDuration += 60;
@@ -673,14 +863,7 @@ static void handleLedButton(void) {
                 tmrRemaining = 0;
                 tmrPaused = 0;
                 showTmr();
-                buzzerBeep(15);
             }
-            return;
-        case MODE_TIME_SET:
-            incrementTimeField();
-            break;
-        case MODE_ALARM_SET:
-            incrementAlarmField();
             break;
         case MODE_ALARM:
             if (alarmArmed) {
@@ -696,15 +879,11 @@ static void handleLedButton(void) {
                 alarmArmed = (alarmSet(&pToI2C, &a) == CORE_OK);
             }
             showAlarm();
-            buzzerBeep(15);
             break;
-        case MODE_TIME:
         default:
-            ledToggle();
-            buzzerBeep(20);
-            ledOff();
             break;
     }
+    buzzerBeep(20);
 }
 
 int main() {
@@ -768,13 +947,13 @@ int main() {
             setDate(&pToI2C, &rtcDate);
       }
 
-      // Start blinking in TIME-SET mode immediately upon battery insertion / boot
-      enterTimeSet();
+    // Bring-up confirmation.
+    ledOn();
+    buzzerBeep(50);
+    ledOff();
 
-      // Bring-up confirmation.
-      ledOn();
-      buzzerBeep(50);
-      ledOff();
+    // Start blinking in TIME-SET mode immediately upon battery insertion / boot
+    enterTimeSet();
 
       // --- Event-driven superloop: WFI until an EXTI event. ---
       while (1) {

@@ -125,3 +125,37 @@ uint8_t I2C_Receive(I2C_Handle_t *pToI2CHandle, uint8_t *data,
     I2C_ClearEndFlags(i2c, status);
     return status;
 }
+
+uint8_t I2C_MemRead(I2C_Handle_t *pToI2CHandle, uint8_t memAddr, uint8_t *data,
+                     uint8_t length, uint8_t deviceAddress) {
+    if (!pToI2CHandle || !pToI2CHandle->pI2Cx || (!data && length)) return I2C_CFG_ERR;
+    I2Cx_Reg_TypeDef *i2c = pToI2CHandle->pI2Cx;
+
+    // Write the register pointer with AUTOEND=0: no STOP is issued, so the
+    // target's internal read pointer/latch is not disturbed before the
+    // read phase begins (some parts reset/re-latch output regs on STOP).
+    i2c->cr2 = (((uint32_t)deviceAddress >> 1) << 1) |
+               (1U << 16) | (1U << 13); // NBYTES=1 | START, AUTOEND=0
+
+    uint8_t status = I2C_WaitFlag(i2c, 1U << 1); // TXIS
+    if (status != CORE_OK) { I2C_ClearEndFlags(i2c, status); return status; }
+    i2c->txdr = memAddr;
+
+    status = I2C_WaitFlag(i2c, 1U << 6); // TC: transfer complete, ready for repeated START
+    if (status != CORE_OK) { I2C_ClearEndFlags(i2c, status); return status; }
+
+    // Repeated START directly into the read phase, AUTOEND=1 so STOP is
+    // generated automatically after the last byte.
+    i2c->cr2 = (((uint32_t)deviceAddress >> 1) << 1) | (1U << 10) |
+               ((uint32_t)length << 16) | (1U << 25) | (1U << 13); // RD_WRN | NBYTES | AUTOEND | START
+
+    for (uint8_t i = 0; i < length; i++) {
+        status = I2C_WaitFlag(i2c, 1U << 2); // RXNE
+        if (status != CORE_OK) { I2C_ClearEndFlags(i2c, status); return status; }
+        data[i] = (uint8_t)i2c->rxdr;
+    }
+
+    status = I2C_WaitFlag(i2c, 1U << 5); // STOPF
+    I2C_ClearEndFlags(i2c, status);
+    return status;
+}

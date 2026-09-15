@@ -85,8 +85,14 @@ uint8_t magCalibrate(I2C_Handle_t *pToI2CHandle);
 // Returns CORE_OK or I2C error.
 uint8_t magGetData(I2C_Handle_t *pToI2CHandle, mag_data_t *data);
 
-// Calculate compass heading from mag data. Returns 0-3599 (0.1° resolution).
-// 0° = +X (forward), 90° = +Y (East), 180° = -X, 270° = -Y.
+// Explicitly stop continuous operation and return to the 1 µA power-down
+// state. The supply stays on because this board's unpowered sensor clamps
+// the shared RTC I2C bus.
+uint8_t magStandby(I2C_Handle_t *pToI2CHandle);
+
+// Calculate watch heading from mag data. U13 is rotated 90° on the PCB:
+// sensor +X points toward the SWDIO/SWCLK edge (watch north/forward), and
+// sensor -Y points toward watch-right. Returns 0-3599 (0.1° resolution).
 uint16_t magTransformToHeading(const mag_data_t *data);
 
 #endif //OPENCASIO_MMC5603NJ_H

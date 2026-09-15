@@ -39,6 +39,14 @@ void I2C_DeInit(I2Cx_Reg_TypeDef *pI2Cx); // gate the peripheral clock and relea
 uint8_t I2C_Transmit(I2C_Handle_t *pToI2CHandle, uint8_t *data, uint8_t memAddr, uint8_t length, uint8_t deviceAddress);
 uint8_t I2C_Receive(I2C_Handle_t *pToI2CHandle, uint8_t *data, uint8_t length, uint8_t deviceAddress);
 
+// Register read using a repeated START (no STOP) between the pointer write
+// and the read phase, instead of write-STOP-read. Some targets reset or
+// re-latch their output registers on STOP, silently returning stale/zero
+// data on a subsequent separate read transaction; repeated START avoids
+// that window. Use for devices/registers suspected of this behavior
+// (e.g. MMC5603NJ XOUT/TOUT bursts).
+uint8_t I2C_MemRead(I2C_Handle_t *pToI2CHandle, uint8_t memAddr, uint8_t *data, uint8_t length, uint8_t deviceAddress);
+
 
 
 

@@ -19,9 +19,12 @@
 // is the two-transaction pattern (write register address, STOP, then read).
 
 uint8_t readFromMag(I2C_Handle_t *pToI2CHandle, uint8_t reg, uint8_t *buf, uint8_t len) {
-    uint8_t status = I2C_Transmit(pToI2CHandle, 0, reg, 0, MAG_ADDR);
-    if (status != CORE_OK) return status;
-    return I2C_Receive(pToI2CHandle, buf, len, MAG_ADDR);
+    // Repeated START (no intervening STOP) between the pointer write and the
+    // read: a write-STOP-read sequence was observed on silicon to reliably
+    // return all-zero XOUT/TOUT bytes even after Status1.MEAS_M_DONE, on two
+    // different boards with a clean, NACK-free bus — consistent with the
+    // output latch resetting/re-arming on STOP.
+    return I2C_MemRead(pToI2CHandle, reg, buf, len, MAG_ADDR);
 }
 
 uint8_t writeToMag(I2C_Handle_t *pToI2CHandle, uint8_t reg, uint8_t *buf, uint8_t len) {
@@ -110,11 +113,22 @@ uint8_t magGetData(I2C_Handle_t *pToI2CHandle, mag_data_t *data) {
     return CORE_OK;
 }
 
-// Heading from X and Y components. atan2(y, x) gives standard math angle;
-// compass heading = 90 - math_angle, normalized to 0-360.
+uint8_t magStandby(I2C_Handle_t *pToI2CHandle) {
+    uint8_t zero = 0;
+    uint8_t status = writeToMag(pToI2CHandle, MAG_REG_CTRL2, &zero, 1);
+    if (status != CORE_OK) return status;
+    status = writeToMag(pToI2CHandle, MAG_REG_ODR, &zero, 1);
+    if (status != CORE_OK) return status;
+    status = writeToMag(pToI2CHandle, MAG_REG_CTRL0, &zero, 1);
+    if (status == CORE_OK) ctrl0Shadow = 0;
+    return status;
+}
+
+// U13 rotation maps watch-forward to sensor +X and watch-right to sensor -Y.
+// atan2(right, forward) gives clockwise compass degrees from the SWD edge.
 // Returns 0-3599 (0.1° resolution).
 uint16_t magTransformToHeading(const mag_data_t *data) {
-    float headingDeg = 90.0f - (float)(atan2((double)data->y_mG, (double)data->x_mG) * 180.0 / M_PI);
+    float headingDeg = (float)(atan2((double)-data->y_mG, (double)data->x_mG) * 180.0 / M_PI);
     if (headingDeg < 0.0f) headingDeg += 360.0f;
     if (headingDeg >= 360.0f) headingDeg -= 360.0f;
     return (uint16_t)(headingDeg * 10.0f);

@@ -285,6 +285,8 @@ $END
 - **RV-3129-C3:** INT pin 7 is open-drain active-LOW, matching R11 and PA0. Register reads require STOP between the register-address write and read. `Control_Status.PON` is bit 5 and indicates a full RTC power-on reset; bit 7 is EEbusy, not a validity-loss flag.
 - **RTC timer:** firmware uses the 32 Hz source with reload count 31. TE/TAR are disabled before loading the count, TF is cleared, then TAR/TE/TIE are enabled. Recurring one-second delivery was verified on target.
 - **MMC5603NJ:** fixed address 0x30 and product-ID register 0x39 should return 0x10. CTRL0 at 0x1B is write-only and is shadowed by the driver. These driver rules are implemented, but the current board NACKs before any register can be read.
+- **Compass orientation:** the SWDIO/SWCLK edge is watch north/forward. U13's 90° PCB rotation maps sensor +X to watch-forward and sensor -Y to watch-right; heading is computed clockwise with `atan2(-Y, X)`.
+- **Compass UI/power:** MAG takes one on-demand sample on entry, then remains static until ALARM requests another sample. The left two date positions show the nearest cardinal/intercardinal direction (`N`, `NE`, `E`, `SE`, `S`, `SW`, `W`, `NW`). Outside MAG, ODR and continuous mode are cleared for the datasheet's ~1 µA power-down state. `MAG_EN` cannot be lowered on this board because an unpowered U13 clamps the shared RTC I2C lines.
 - **BME280:** SDO strap is confirmed at 0x76. Soft-reset settling, calibration reads, forced-mode retry, Bosch pressure Q24.8 conversion, and humidity compensation are implemented. Latest connected sample: 20.43 °C, 93881.6 Pa, 49.52 %RH.
 
 ## 7. Remaining hardware and standalone checks
@@ -296,14 +298,14 @@ $END
 5. Measure operating and sleep current. The present hardware requires both sensor rails to remain enabled for shared-I2C operation, so the intended power-gating design is not yet available.
 6. Identify buzzer amplifier U1 and decide whether GPIO square-wave drive is sufficient or TIM2 PWM is required.
 
-## 8. Bring-up findings (on-silicon through 2026-09-13)
+## 8. Bring-up findings (on-silicon through 2026-09-15)
 
 1. **Boot ROM:** a virgin STM32WB55 may boot the system loader after flash programming because `FLASH_ACR.EMPTY` is re-evaluated at option-byte load. A power-on reset, or explicitly clearing EMPTY, is required once.
 2. **Sensor rails:** unpowered BME280/MMC5603NJ devices clamp the shared I2C bus. Active-HIGH U11/U12 operation and a conservative ~20 ms settle are established. Both rails currently stay enabled.
 3. **BME280:** final driver passes initialization and measurement on silicon. Earlier reset-default samples came from insufficient post-reset settling; pressure and humidity compensation defects are fixed.
-4. **MMC5603NJ:** write-only CTRL0 shadowing and Status1 bit-6 completion handling are implemented. Earlier sessions reached measurement code, but the final full-address scan finds no device at 0x30. Current product-ID reads NACK, so compass behavior is not accepted as verified.
-5. **LCD:** STM32 segment-line remapping, high-word COM handling, and PC10/PC11/PC12 SEG42/41/40 selection are resolved. The complete deterministic pattern was physically accepted and stable RAM decoding reports no unknown cells.
-6. **RTC:** PON bit handling, legal timer sequencing, exact recurring one-second ticks, TIME-SET blinking, and weekday/day persistence are verified on target.
-7. **UI clocks:** ALARM-SET reachability and arm/disarm truthfulness are verified. Countdown pause preserved 598 seconds, resumed to 597, and reached 594 in another mode. Stopwatch advanced from 2 to 5 seconds while another screen was shown.
-8. **Programming:** the V2J17S4 ST-Link requires deprecated OpenOCD HLA transport. The final ELF builds at 18,708 bytes flash / 712 bytes RAM and was programmed with `stlink-hla.cfg`; OpenOCD reported `Verified OK`.
+4. **MMC5603NJ:** write-only CTRL0 shadowing and Status1 bit-6 completion handling are implemented. MAG measurements are manually requested with ALARM and return to on-demand power-down afterward. Earlier one-second Saleae testing confirmed the scheduler and persistent `0x30` NACK, but compass heading behavior is not accepted as verified.
+5. **LCD:** STM32 segment-line remapping, high-word COM handling, and PC10/PC11/PC12 SEG42/41/40 selection are resolved. The complete deterministic pattern was physically accepted and stable RAM decoding reports no unknown cells. The clock now renders date and time before one UDR request; this avoids LCD RAM write protection discarding the time update.
+6. **RTC:** PON bit handling, legal timer sequencing, exact recurring one-second ticks, TIME-SET blinking, and month/day persistence are verified on target. A Saleae capture with D0=SCL and D1=SDA showed TF=0x02, fully ACKed reads, and advancing BCD seconds.
+7. **UI clocks:** physical clock, alarm, stopwatch, and countdown operation is accepted. The clock visibly advances, alarm state renders correctly, stopwatch start/stop/reset works, and countdown pause/resume works. Off-screen progression remains verified from the earlier target checks.
+8. **Programming:** the V2J17S4 ST-Link requires deprecated OpenOCD HLA transport. The final ELF builds at 19,980 bytes flash / 712 bytes RAM and was programmed with `stlink-hla.cfg`; OpenOCD reported `Verified OK`.
 9. **Preflight disposition:** `PREFLIGHT-01` build/upload and `PREFLIGHT-02` LCD pass. `PREFLIGHT-03` remains FAIL solely because the magnetometer does not ACK. The CSV intentionally gates disconnection on resolving or explicitly accepting that hardware failure.

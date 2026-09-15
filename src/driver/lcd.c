@@ -61,7 +61,7 @@ static const uint8_t Character_Set[] = {
     0b10110111, // M (position 0 only)
     0b00110111, // N
     0b00111111, // O
-    0b01110011, // P
+    0b01110001, // P (A, F, G, E: top + upper-left + middle + lower-left, no right side)
     0b01100111, // Q
     0b11110111, // R (position 1 only)
     0b01101101, // S

@@ -99,7 +99,7 @@ debug/STM32WB55_CM4.svd  SVD for debugger register views
 
 ## 6. Current state
 
-- Final connected image builds at 18,708 bytes flash / 712 bytes RAM. The
+- Final connected image builds at 19,980 bytes flash / 712 bytes RAM. The
   V2J17S4 ST-Link requires OpenOCD HLA (`interface/stlink-hla.cfg`);
   programming and ELF verification pass.
 - GPIO, I2C1, LCD, RTC, BME280, LED/buzzer outputs, EXTI superloop, and all
@@ -111,6 +111,24 @@ debug/STM32WB55_CM4.svd  SVD for debugger register views
 - RTC PON cold-start handling, timer sequencing, TIME-SET/date persistence,
   alarm editing/arming, countdown pause/resume, and off-screen stopwatch and
   countdown progression are verified on target through real superloop events.
+- The complete-frame LCD fix is physically accepted: clock seconds advance,
+  and the alarm, stopwatch, and countdown screens operate correctly. Saleae
+  D0=SCL/D1=SDA captures showed healthy one-second RTC reads; ST-LINK confirmed
+  LCD RAM changes after rendering date and time before one UDR request.
+- The mode order after countdown is BME temperature, pressure, humidity, then
+  MAG. The three BME screens reuse one forced-mode measurement for a consistent
+  environmental sample.
+- ALARM toggles the temperature screen between Celsius and Fahrenheit. The
+  choice persists across mode changes for the current powered session. The
+  temperature includes tenths; the glass colon is used as its decimal marker,
+  and the degree symbol is omitted.
+- LED follows the debounced button level outside edit modes: on while held and
+  off on release. ALARM, STW, and TMR retain one-shot secondary actions. In
+  edit modes LED increments once per short press, then auto-repeats at about
+  5 Hz after a hold longer than three seconds.
+- MAG samples once on entry and again only when ALARM is pressed. Its left two
+  positions show the nearest eight-point compass direction; outside MAG the
+  device is explicitly returned to its ~1 µA on-demand power-down state.
 - BME280 at 0x76 passes initialization and forced measurements. Latest sample:
   20.43 °C, 93881.6 Pa, 49.52 %RH.
 - Shared-bus hardware constraint: unpowered sensors clamp SCL/SDA. PB0/PB1
@@ -136,7 +154,7 @@ debug/STM32WB55_CM4.svd  SVD for debugger register views
    then change PREFLIGHT-03 to PASS.
 4. Install the board and execute all 88 CSV scenarios with physical buttons,
    LED, buzzer, battery removal, real alarm firing, clock rollover, stopwatch,
-   countdown, and both sensor screens.
+   countdown, all three BME screens, and MAG.
 5. Measure operating/sleep current and long-duration RTC accuracy. Sensor
    power-gating needs a hardware bus-isolation solution before optimization.
 
