@@ -65,7 +65,7 @@ volatile uint8_t bmeInitStatus, bmeMeasStatus;
 volatile uint8_t lcdInitStatus;
 volatile uint8_t magInitStatus, magMeasStatus;
 static uint8_t magReady;
-static volatile uint8_t editMonth = 1, editDay = 1;  // date edit shadows (month 1-12, day 1-31)
+static volatile uint8_t editMonth = 1, editDay = 1, editWeekday = 1;
 
 // Edit-mode state (declared early: the INT handler blinks these fields).
 static rtc_time_t editTime;
@@ -119,8 +119,8 @@ static volatile uint8_t alarmHours = 6, alarmMinutes = 30;
 static volatile uint8_t alarmArmed;
 
 // --- Edit-mode state ---
-// TIME-SET fields sequence: seconds, minutes, hours, day, month.
-enum { EDF_SEC = 0, EDF_MIN, EDF_HOUR, EDF_DAY, EDF_MONTH, EDF_TIME_COUNT };
+// TIME-SET fields sequence: seconds, minutes, hours, weekday, day, month.
+enum { EDF_SEC = 0, EDF_MIN, EDF_HOUR, EDF_WEEKDAY, EDF_DAY, EDF_MONTH, EDF_TIME_COUNT };
 // ALARM-SET fields: hours, minutes.
 enum { EDA_HOUR = 0, EDF_ALARM_HOUR = 0, EDF_ALARM_MIN, EDF_ALARM_COUNT };
 static volatile uint8_t editField;
@@ -157,11 +157,13 @@ static void displayTimeOnLcd(void) {
 }
 
 static void displayDateOnLcd(void) {
+    static const char weekdayText[8][3] = {
+        "--", "SU", "MO", "TU", "WE", "TH", "FR", "SA",
+    };
+    const uint8_t weekday = rtcDate.weekday <= 7U ? rtcDate.weekday : 0U;
+    lcdDisplayString(weekdayText[weekday], 0);
+
     char buf[3];
-    buf[0] = '0' + (rtcDate.month / 10);
-    buf[1] = '0' + (rtcDate.month % 10);
-    buf[2] = 0;
-    lcdDisplayString(buf, 0);
     buf[0] = '0' + (rtcDate.day / 10);
     buf[1] = '0' + (rtcDate.day % 10);
     buf[2] = 0;
@@ -179,12 +181,14 @@ static void displayClock(void) {
 }
 
 static void displayTimeSetScreen(void) {
-    char dateBuf[5];
-    dateBuf[0] = '0' + (editMonth / 10);
-    dateBuf[1] = '0' + (editMonth % 10);
-    dateBuf[2] = '0' + (editDay / 10);
-    dateBuf[3] = '0' + (editDay % 10);
-    dateBuf[4] = 0;
+    static const char weekdayText[8][3] = {
+        "--", "SU", "MO", "TU", "WE", "TH", "FR", "SA",
+    };
+    const uint8_t weekday = editWeekday <= 7U ? editWeekday : 0U;
+    char dateBuf[5] = {
+        weekdayText[weekday][0], weekdayText[weekday][1],
+        '0' + (editDay / 10), '0' + (editDay % 10), 0,
+    };
 
     char timeBuf[7];
     timeBuf[0] = '0' + (editTime.hours / 10);
@@ -197,7 +201,8 @@ static void displayTimeSetScreen(void) {
 
     if (!editBlinkOn) {
         if (editField == EDF_MONTH) dateBuf[0] = dateBuf[1] = ' ';
-        if (editField == EDF_DAY)   dateBuf[2] = dateBuf[3] = ' ';
+        if (editField == EDF_WEEKDAY) dateBuf[0] = dateBuf[1] = ' ';
+        if (editField == EDF_DAY)     dateBuf[2] = dateBuf[3] = ' ';
         if (editField == EDF_HOUR)  timeBuf[0] = timeBuf[1] = ' ';
         if (editField == EDF_MIN)   timeBuf[2] = timeBuf[3] = ' ';
         if (editField == EDF_SEC)   timeBuf[4] = timeBuf[5] = ' ';
@@ -395,6 +400,8 @@ static void enterTimeSet(void) {
     if (editMonth == 0 || editMonth > 12) editMonth = 1;
     editDay = rtcDate.day;
     if (editDay == 0 || editDay > 31) editDay = 1;
+    editWeekday = rtcDate.weekday;
+    if (editWeekday == 0 || editWeekday > 7) editWeekday = 1;
     editField = EDF_SEC;
     editBlinkOn = 1;
     uiMode = MODE_TIME_SET;
@@ -407,6 +414,7 @@ static void incrementTimeField(void) {
         case EDF_SEC:   editTime.seconds = (editTime.seconds + 1) % 60; break;
         case EDF_MIN:   editTime.minutes = (editTime.minutes + 1) % 60; break;
         case EDF_HOUR:  editTime.hours   = (editTime.hours + 1) % 24;   break;
+        case EDF_WEEKDAY: editWeekday      = (editWeekday % 7) + 1;     break;
         case EDF_DAY:   editDay          = (editDay % 31) + 1;          break;
         case EDF_MONTH: editMonth        = (editMonth % 12) + 1;        break;
         default: break;
@@ -420,6 +428,7 @@ static void exitTimeSet(void) {
     setTime(&pToI2C, &editTime);
     rtcDate.month = editMonth;
     rtcDate.day = editDay;
+    rtcDate.weekday = editWeekday;
     setDate(&pToI2C, &rtcDate);
     uiMode = MODE_TIME;
     tickStart();
@@ -460,6 +469,7 @@ static void autoRepeatEditField(void) {
                 case EDF_SEC:   editTime.seconds = (editTime.seconds + 1) % 60; break;
                 case EDF_MIN:   editTime.minutes = (editTime.minutes + 1) % 60; break;
                 case EDF_HOUR:  editTime.hours   = (editTime.hours + 1) % 24;   break;
+                case EDF_WEEKDAY: editWeekday    = (editWeekday % 7) + 1;       break;
                 case EDF_DAY:   editDay          = (editDay % 31) + 1;          break;
                 case EDF_MONTH: editMonth        = (editMonth % 12) + 1;        break;
                 default: break;
@@ -609,6 +619,7 @@ static void enterMode(ui_mode_t m) {
 static void enterMagMode(void) {
     uiMode = MODE_MAG;
     magReady = 0;
+    magResetCalibration();
     // Don't submit a blank frame here: updateMagDisplay() does its own
     // clear + single lcdDisplayUpdate(). Submitting one here first would
     // write-protect LCD RAM before the heading digits are rendered,
@@ -641,14 +652,10 @@ static void showBmeError(void) {
     lcdDisplayUpdate();
 }
 
-// The sensor sits inside the case against the wearer's wrist, so on-wrist
-// readings run hot vs. ambient (body heat + no airflow, tested exposed on
-// the bench). Subtract a fixed offset to approximate ambient/skin-adjacent
-// temperature. This is a rough compensation, not a calibrated model.
-#define BME_WRIST_OFFSET_C  -2.0f
-
 static void showBmeTemperature(void) {
-    float temperature = bmeData.temp_C + BME_WRIST_OFFSET_C;
+    // Report the calibrated BME280 die temperature without a wrist offset.
+    // Remove the watch from the wrist when ambient precision is required.
+    float temperature = bmeData.temp_C;
     char unit = 'C';
     if (bmeTempFahrenheit) {
         temperature = temperature * 9.0f / 5.0f + 32.0f;
@@ -768,7 +775,7 @@ static void cycleMode(void) {
 
 static void handleModeButton(void) {
     if (uiMode == MODE_TIME_SET) {
-        // next edit field (sec -> min -> hour -> day -> month -> sec)
+        // next edit field (sec -> min -> hour -> weekday -> day -> month)
         editField = (editField + 1) % EDF_TIME_COUNT;
         editBlinkOn = 1;
         displayTimeSetScreen();
@@ -942,7 +949,8 @@ int main() {
       }
       rtcReadStatus = getDate(&pToI2C, &rtcDate);
       if (rtcReadStatus != CORE_OK || (rtcStatus & RTC_STATUS_PON) ||
-          rtcDate.day == 0 || rtcDate.day > 31 || rtcDate.month == 0 || rtcDate.month > 12) {
+          rtcDate.day == 0 || rtcDate.day > 31 || rtcDate.weekday == 0 ||
+          rtcDate.weekday > 7 || rtcDate.month == 0 || rtcDate.month > 12) {
             rtcDate = (rtc_date_t){ .day = 1, .weekday = 1, .month = 1, .year = 0 };
             setDate(&pToI2C, &rtcDate);
       }

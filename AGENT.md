@@ -127,9 +127,8 @@ debug/STM32WB55_CM4.svd  SVD for debugger register views
   and the degree symbol is omitted.
 - LED follows the debounced button level outside edit modes: on while held and
   off on release. ALARM, STW, and TMR retain one-shot secondary actions. In
-  edit modes LED increments once per short press, then the current
-  implementation repeats on the 1 Hz RTC tick after a hold longer than three
-  seconds; the intended approximately 5 Hz behavior remains unverified.
+  edit modes LED increments once per short press, then auto-repeats at about
+  5 Hz after a hold longer than three seconds. In-case verification remains.
 - MAG samples once on entry and again only when ALARM is pressed. Its left two
   positions show the nearest eight-point compass direction; outside MAG the
   device is explicitly returned to its ~1 µA on-demand power-down state.

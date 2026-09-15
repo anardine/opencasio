@@ -34,6 +34,16 @@ uint8_t writeToMag(I2C_Handle_t *pToI2CHandle, uint8_t reg, uint8_t *buf, uint8_
 // CTRL0 (0x1B) is WRITE-ONLY (datasheet §Internal Control 0): reads return
 // 0x60 on silicon. State is tracked here instead of read-modify-write.
 static uint8_t ctrl0Shadow;
+static float magMinX, magMaxX, magMinY, magMaxY;
+static uint16_t magCalibrationSamples;
+
+void magResetCalibration(void) {
+    magMinX = 1.0e30f;
+    magMaxX = -1.0e30f;
+    magMinY = 1.0e30f;
+    magMaxY = -1.0e30f;
+    magCalibrationSamples = 0;
+}
 
 // Initialize: verify product ID, enable Auto_SR, perform SET/RESET.
 // On-demand mode (MAG_CONTINUOUS_MODE = 0 by default). Every measurement
@@ -128,7 +138,27 @@ uint8_t magStandby(I2C_Handle_t *pToI2CHandle) {
 // atan2(right, forward) gives clockwise compass degrees from the SWD edge.
 // Returns 0-3599 (0.1° resolution).
 uint16_t magTransformToHeading(const mag_data_t *data) {
-    float headingDeg = (float)(atan2((double)-data->y_mG, (double)data->x_mG) * 180.0 / M_PI);
+    if (data->x_mG < magMinX) magMinX = data->x_mG;
+    if (data->x_mG > magMaxX) magMaxX = data->x_mG;
+    if (data->y_mG < magMinY) magMinY = data->y_mG;
+    if (data->y_mG > magMaxY) magMaxY = data->y_mG;
+    if (magCalibrationSamples < UINT16_MAX) magCalibrationSamples++;
+
+    float x = data->x_mG;
+    float y = data->y_mG;
+    const float spanX = magMaxX - magMinX;
+    const float spanY = magMaxY - magMinY;
+    if (magCalibrationSamples >= 4U && spanX > 1.0f && spanY > 1.0f) {
+        const float centerX = (magMaxX + magMinX) * 0.5f;
+        const float centerY = (magMaxY + magMinY) * 0.5f;
+        const float radiusX = spanX * 0.5f;
+        const float radiusY = spanY * 0.5f;
+        const float radius = (radiusX + radiusY) * 0.5f;
+        x = (data->x_mG - centerX) * radius / radiusX;
+        y = (data->y_mG - centerY) * radius / radiusY;
+    }
+
+    float headingDeg = (float)(atan2((double)-y, (double)x) * 180.0 / M_PI);
     if (headingDeg < 0.0f) headingDeg += 360.0f;
     if (headingDeg >= 360.0f) headingDeg -= 360.0f;
     return (uint16_t)(headingDeg * 10.0f);

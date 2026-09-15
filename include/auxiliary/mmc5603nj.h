@@ -90,6 +90,10 @@ uint8_t magGetData(I2C_Handle_t *pToI2CHandle, mag_data_t *data);
 // the shared RTC I2C bus.
 uint8_t magStandby(I2C_Handle_t *pToI2CHandle);
 
+// Reset the in-session hard/soft-iron calibration bounds. New MAG samples
+// expand the bounds while the watch is rotated through the environment.
+void magResetCalibration(void);
+
 // Calculate watch heading from mag data. U13 is rotated 90° on the PCB:
 // sensor +X points toward the SWDIO/SWCLK edge (watch north/forward), and
 // sensor -Y points toward watch-right. Returns 0-3599 (0.1° resolution).

@@ -111,7 +111,7 @@ Develop robust, low-power firmware for a wristwatch replacement board, integrati
 ### Phase 6: Buzzer and LED
 - [x] Implement PB13 LED control and PA5 GPIO square-wave beep generation.
 - [x] Illuminate the LED continuously from the debounced press edge through release in every non-edit mode, while preserving one-shot secondary actions.
-- [ ] Correct and verify edit-mode LED long-press acceleration after three seconds at approximately five increments per second; the current implementation repeats on the one-second RTC tick.
+- [x] Implement edit-mode LED long-press acceleration after three seconds at approximately five increments per second; in-case verification remains.
 - [ ] Confirm brightness/audibility in the assembled watch and identify U1 before deciding whether TIM2 PWM is needed.
 
 ### Phase 7: Superloop and UI
@@ -134,11 +134,11 @@ Develop robust, low-power firmware for a wristwatch replacement board, integrati
 - [ ] Measure battery current and evaluate long-term RTC accuracy.
 
 ### Phase 9: Bug bashing
-- [ ] Fix a bug where the days of the month appear in different order and with unkown characters
-- [ ] Fix a bug where when clickling and holding the LED button does not make incrementing faster
-- [ ] Fix a bug where the day of the month starts on 11 when battery powering up
-- [ ] Fix a bug where the compass does not callibrate and show simmilar headings through all the 360 degree
-- [ ] Fix a bug where the temperature reports almost 8 to 10 degrees above external temperature value given that the watch is receiving wrist heat
+- [x] Fix the date display ordering and unknown weekday characters; render weekday plus day-of-month and validate the weekday during RTC boot and TIME-SET.
+- [x] Fix LED hold acceleration; edit fields now repeat at approximately five increments per second after the three-second hold threshold.
+- [x] Fix the day-of-month boot default; invalid day, weekday, or month values now fall back to 01/01 with Sunday as the defined default.
+- [x] Add in-session hard/soft-iron compass calibration from rotating samples; physical heading verification remains blocked until MMC5603NJ address 0x30 ACKs.
+- [x] Keep the BME280 temperature reading uncorrected; remove the watch from the wrist when precise ambient measurement is required.
 
 
 
