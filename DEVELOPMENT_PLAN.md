@@ -1,6 +1,6 @@
 # DEVELOPMENT_PLAN.md
 
-This project aims to implement custom firmware for the OPENCASIO (STM32WB55REV6-based replacement board for Casio F-91W). The development process must strictly adhere to the guidelines set in `AGENT.md`.
+This project aims to implement custom firmware for the OPENCASIO (STM32WB55REV6-based replacement board for Casio F-91W). The development process must strictly adhere to the guidelines set in `AGENT.md` if an AI is being used.
 
 ## Project Goal
 Develop robust, low-power firmware for a wristwatch replacement board, integrating RTC, temperature/pressure/humidity sensor, magnetometer, and LCD display, all within the constraints of a custom STM32WB55-based PCB.
@@ -17,7 +17,7 @@ Develop robust, low-power firmware for a wristwatch replacement board, integrati
 3. **RTC integration — implemented and verified:** binary/BCD time and date, PON cold-start handling, alarm, and recurring 1 Hz timer interrupts.
 4. **Sensor integration — BME accepted, MAG blocked:** BME280 measurements are plausible; the magnetometer driver is implemented but cannot pass presence detection on the connected board.
 5. **LCD driver — implemented and verified:** F-91W glass mapping and indicators match the deterministic target pattern with no unknown RAM cells. The complete-frame update fix is built, flashed, and physically verified with the clock, alarm, stopwatch, and countdown displays.
-6. **Buzzer/LED — implemented:** GPIO output paths run; final brightness, audibility, and case fit remain standalone checks.
+6. **Buzzer/LED — partially accepted:** GPIO output paths and LED press/release behavior run, but long-press edit acceleration still needs correction/verification; final brightness, audibility, and case fit remain standalone checks.
 7. **Superloop/UI — core watch modes verified:** the clock, alarm, stopwatch, and countdown are working on the connected board with visible one-second updates. EXTI-driven mode changes, alarm state, pause/resume, and off-screen stopwatch/countdown progression are accepted.
 8. **Standalone validation — pending:** execute the 88-scenario matrix after the magnetometer preflight failure is resolved or explicitly accepted.
 
@@ -111,7 +111,7 @@ Develop robust, low-power firmware for a wristwatch replacement board, integrati
 ### Phase 6: Buzzer and LED
 - [x] Implement PB13 LED control and PA5 GPIO square-wave beep generation.
 - [x] Illuminate the LED continuously from the debounced press edge through release in every non-edit mode, while preserving one-shot secondary actions.
-- [x] Add edit-mode LED long-press acceleration after three seconds at approximately five increments per second.
+- [ ] Correct and verify edit-mode LED long-press acceleration after three seconds at approximately five increments per second; the current implementation repeats on the one-second RTC tick.
 - [ ] Confirm brightness/audibility in the assembled watch and identify U1 before deciding whether TIM2 PWM is needed.
 
 ### Phase 7: Superloop and UI
@@ -133,37 +133,37 @@ Develop robust, low-power firmware for a wristwatch replacement board, integrati
 - [ ] Execute and record all 88 disconnected scenarios.
 - [ ] Measure battery current and evaluate long-term RTC accuracy.
 
-## Simulator (Renode)
+### Phase 9: Bug bashing
+- [ ] Fix a bug where the days of the month appear in different order and with unkown characters
+- [ ] Fix a bug where when clickling and holding the LED button does not make incrementing faster
+- [ ] Fix a bug where the day of the month starts on 11 when battery powering up
+- [ ] Fix a bug where the compass does not callibrate and show simmilar headings through all the 360 degree
+- [ ] Fix a bug where the temperature reports almost 8 to 10 degrees above external temperature value given that the watch is receiving wrist heat
 
-A local simulation of the firmware runs under Renode 1.16.1, installed in
-`simulation/tool/`. Platform description, peripheral models, and run script
-live in `simulation/model/` and `simulation/run.resc`.
 
-Run:
-```
-simulation/tool/Renode.app/Contents/MacOS/renode --disable-xwt --console simulation/run.resc
-```
 
-What works:
-- Platform boots: Cortex-M4, RCC (Python model returning HSIRDY/SWS/LSI1RDY),
-  GPIO A-E, SYSCFG, EXTI, NVIC, I2C1, flash, SRAM.
-- Firmware ELF loads and executes: `initRCC()`, `Board_GPIO_Init()`, EXTI
-  setup, and the bus-scan sequence all run.
-- Three I2C sensor stubs (RTC 0x56, MAG 0x30, BME280 0x76) are registered
-  on the I2C bus and ACK their addresses.
 
-What doesn't work yet:
-- The `STM32F7_I2C` model (I2C v2) does not drive the polled status flags
-  (`TXIS`, `NACKF`, `STOPF`) our driver waits for. The firmware hangs on
-  the first `I2C_Transmit` and all scan results read `0x00`. This is a
-  model-fidelity gap, not a firmware bug — the same driver is expected to
-  work on real hardware.
-- Fixing this requires either a custom I2C controller model in C# that
-  sets the ISR flags on address/data phases, or switching to Renode's
-  robot-test framework with scripted peripheral responses. Parked for now.
 
-Files:
-- `simulation/model/opencasio.repl` — platform description (peripheral map)
-- `simulation/model/opencasio_rcc.py` — RCC PythonPeripheral (ready flags)
-- `simulation/model/RegisterFileI2CSlave.cs` — generic I2C register-file slave
-- `simulation/run.resc` — Renode script: loads platform, ELF, prints scan
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

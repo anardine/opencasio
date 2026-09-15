@@ -10,6 +10,9 @@ The OPENCASIO is a replacement board for the Casio F-91W, one of the most used w
 
 The board integrates a sealed external RTC, a BME280 temperature/pressure/humidity sensor, and an MMC5603NJ magnetometer intended to provide a compact compass. The current assembled board passes RTC and BME280 checks but does not detect the magnetometer; see the firmware status below.
 
+## Demo Video
+
+
 ## What is it for?
 OPENCASIO targets outdoor users who want useful environmental and navigation functions in the small F-91W case. The current firmware implements a 24-hour clock/calendar, alarm, stopwatch, countdown timer, upgraded light control, and BME readings. Compass support is implemented in firmware but remains blocked by the missing hardware response; 12-hour display selection is not currently implemented.
 
@@ -68,25 +71,8 @@ The connected V2J17S4 ST-Link requires deprecated OpenOCD HLA transport. Platfor
   -c "program .pio/build/nucleo_wb55rg_p/firmware.elf verify reset exit"
 ```
 
-Current connected build: 19,980 bytes flash and 712 bytes RAM. OpenOCD programming and flash verification pass.
-
-Implemented and verified on the board:
-
-- Correct F-91W LCD mapping, characters, colon, and indicators.
-- RV-3129-C3 clock/date, full-power-loss detection, 1 Hz UI tick, and alarm configuration.
-- Physical clock, alarm, stopwatch, and countdown operation, including advancing LCD updates after the complete-frame rendering fix.
-- TIME/TIME-SET, ALARM/ALARM-SET, stopwatch, countdown, separate BME temperature/pressure/humidity screens, and MAG mode flow.
-- Alarm editing/arming, stopwatch start/stop/reset, countdown pause/resume, and stopwatch/countdown progression while another screen is visible.
-- The LED key illuminates the backlight for the full time it is held outside edit modes while retaining its one-shot mode-specific secondary action.
-- In TIME-SET and ALARM-SET, a short LED press increments once; holding it beyond three seconds auto-repeats at approximately five increments per second.
-- BME280 temperature to one decimal place, pressure, and humidity measurement. The LCD colon serves as the temperature decimal separator; the display omits the degree symbol, for example `22:1C`. Latest connected sample: 20.43 °C, 93881.6 Pa, 49.52 %RH.
-- On the temperature screen, ALARM toggles Celsius/Fahrenheit; the selection is retained while the watch remains powered and across later mode visits.
-
-> [!WARNING]
-> The current board does not ACK the MMC5603NJ at its fixed 7-bit address 0x30. A full scan finds only the RTC at 0x56 and BME280 at 0x76 even while PB1/MAG_EN is driven HIGH. Compass operation is not verified; inspect U12, the switched rail at U13.B1, and U13 assembly before treating the watch as complete.
-
-The release/standalone checklist is `tests/opencasio_test_script.csv`. It contains 88 scenarios for battery boot, LCD, buttons, clock editing, alarm, stopwatch, countdown, sensors, power behavior, and recovery. Connected build/upload and LCD preflight pass; peripheral preflight remains failed on the missing magnetometer response. Detailed evidence and unresolved checks are in `DEVELOPMENT_PLAN.md` and `REFERENCE.md`.
-
 ### How to Contribute
 
 This is a tough project to assembly by hand. All the parts were sourced and assembled using JLCPCB amazing factory. Since it's around \$50 per board (completely ready and assembled, around \$250 for five), feel free to order to split. You're welcome to develop this using bigger parts or take the challenge to solder them. Since this is a one-sided board, you can also use a solder plate.
+
+Check the `DEVELOPMENT_PLAN.md`if you want to know the limitations and plan to fix them, as well as take it from here. Issues are also welcome.

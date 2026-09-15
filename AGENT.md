@@ -28,8 +28,11 @@ pressure / humidity. Design goal: **months of battery life**, classic-watch UX.
 3. **Blocking, polled I2C.** No DMA, no interrupts on the data path yet.
    Simple > clever until power measurements say otherwise.
 4. **Power discipline is a feature.** Sensor rails are switched (`TEMP_EN`,
-   `MAG_EN`); code must treat sensor init as cold-start-every-use, gate rails
-   off when idle, and avoid busy-wait delays where a low-power sleep would do.
+   `MAG_EN`) and each sensor must be treated as cold-start-on-enable. On the
+   current board, keep both rails enabled while the shared I2C bus is active:
+   unpowered sensors clamp SCL/SDA. Do not restore idle rail gating until bus
+   isolation is redesigned, and avoid busy-wait delays where a low-power sleep
+   would do.
 5. **Error codes, not silent failures.** Peripheral init functions return
    `uint8_t`; failure codes live in `include/etc/error.h`
    (`CORE_ERROR_CODE`, `PER_ERROR_CODE`). Extend these enums instead of
@@ -124,8 +127,9 @@ debug/STM32WB55_CM4.svd  SVD for debugger register views
   and the degree symbol is omitted.
 - LED follows the debounced button level outside edit modes: on while held and
   off on release. ALARM, STW, and TMR retain one-shot secondary actions. In
-  edit modes LED increments once per short press, then auto-repeats at about
-  5 Hz after a hold longer than three seconds.
+  edit modes LED increments once per short press, then the current
+  implementation repeats on the 1 Hz RTC tick after a hold longer than three
+  seconds; the intended approximately 5 Hz behavior remains unverified.
 - MAG samples once on entry and again only when ALARM is pressed. Its left two
   positions show the nearest eight-point compass direction; outside MAG the
   device is explicitly returned to its ~1 µA on-demand power-down state.

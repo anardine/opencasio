@@ -214,7 +214,7 @@ Bits [6:0] correspond to segments G-F-E-D-C-B-A (LSB = segment A). `1` = on, `-`
 | u | - | 1 | - | - | - | 1 | 1 | upper half |
 | - | - | - | - | - | - | - | 1 | minus |
 
-Full table (96 entries, ASCII 0x20-0x7E) in `src/driver/lcd.c` `Character_Set[]`.
+Full table (95 entries, ASCII 0x20-0x7E) in `src/driver/lcd.c` `Character_Set[]`.
 
 ### Indicator and colon segments
 
@@ -309,3 +309,4 @@ $END
 7. **UI clocks:** physical clock, alarm, stopwatch, and countdown operation is accepted. The clock visibly advances, alarm state renders correctly, stopwatch start/stop/reset works, and countdown pause/resume works. Off-screen progression remains verified from the earlier target checks.
 8. **Programming:** the V2J17S4 ST-Link requires deprecated OpenOCD HLA transport. The final ELF builds at 19,980 bytes flash / 712 bytes RAM and was programmed with `stlink-hla.cfg`; OpenOCD reported `Verified OK`.
 9. **Preflight disposition:** `PREFLIGHT-01` build/upload and `PREFLIGHT-02` LCD pass. `PREFLIGHT-03` remains FAIL solely because the magnetometer does not ACK. The CSV intentionally gates disconnection on resolving or explicitly accepting that hardware failure.
+10. **LED edit acceleration:** debounced short presses increment the selected field, and a held LED button currently repeats on the 1 Hz RTC tick after more than three seconds. The intended approximately 5 Hz behavior remains outstanding.
