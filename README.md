@@ -10,11 +10,16 @@ The OPENCASIO is a replacement board for the Casio F-91W, one of the most used w
 
 The board integrates a sealed external RTC, a BME280 temperature/pressure/humidity sensor, and an MMC5603NJ magnetometer intended to provide a compact compass. The current assembled board passes RTC and BME280 checks but does not detect the magnetometer; see the firmware status below.
 
-## Demo Video
+This project was manufactured and sponsored by JLCPCB, for the OSHWLab Spark 2026 hackathon.
 
+<img width="100" height="100" alt="OSHWLab_Vert_W_BlueBG" src="https://github.com/user-attachments/assets/e909915b-bbdb-4efe-b304-4179d10da400" />
+<img width="100" height="100" alt="EasyEDA_Vert_W_BlueBG" src="https://github.com/user-attachments/assets/885fe597-2537-477e-847b-f2f714023c4a" />
 
 ## What is it for?
 OPENCASIO targets outdoor users who want useful environmental and navigation functions in the small F-91W case. The current firmware implements a 24-hour clock/calendar, alarm, stopwatch, countdown timer, upgraded light control, and BME readings. Compass support is implemented in firmware but remains blocked by the missing hardware response; 12-hour display selection is not currently implemented.
+
+## Demo Video
+https://github.com/user-attachments/assets/eb4eb545-281e-4db1-bff6-2de93db1c712
 
 ## Architecture
 
